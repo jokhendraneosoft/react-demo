@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import type { AppDispatch, RootState } from '@/store'
 import { signup } from '@/store/slices/authSlice'
-import type { UserRole } from '@/store/slices/authSlice'
+import type { UserRole } from '@/utils/constants'
 import { useToast } from '@/context/ToastContext'
 
 export default function SignupPage() {

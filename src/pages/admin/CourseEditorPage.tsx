@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { apiClient } from '@/services/apiClient'
+import { apiClient } from '@/services/api/client'
 import { useToast } from '@/context/ToastContext'
 
 interface LessonInput {

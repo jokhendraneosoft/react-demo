@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchCourses } from '@/services/apiClient'
+import { courseService } from '@/services/api/course.service'
 import { Link } from 'react-router-dom'
 import type { Course } from '@/types/api'
 
@@ -78,7 +78,7 @@ export default function CourseCatalogPage() {
     let cancelled = false
 
     const timeout = setTimeout(() => {
-      fetchCourses({
+      courseService.fetchCourses({
         q: search || undefined,
         category: category || undefined,
         difficulty: (difficulty || undefined) as Course['difficulty'] | undefined,

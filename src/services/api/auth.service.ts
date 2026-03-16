@@ -1,0 +1,36 @@
+import { apiClient } from './client';
+import { API_ENDPOINTS } from './endpoints';
+import type { AuthUser } from '@/store/slices/authSlice';
+
+// We inline the credentials types here or use a shared one
+interface LoginCredentials {
+  email: string;
+  password?: string;
+}
+
+interface SignupCredentials extends LoginCredentials {
+  name: string;
+  role: 'learner' | 'admin';
+}
+
+interface AuthResponse {
+  user: AuthUser;
+  token: string;
+}
+
+export const authService = {
+  login: async (credentials: LoginCredentials) => {
+    const res = await apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    return res.data;
+  },
+
+  signup: async (credentials: SignupCredentials) => {
+    const res = await apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH.SIGNUP, credentials);
+    return res.data;
+  },
+
+  seedDemoUsers: async () => {
+    const res = await apiClient.post(API_ENDPOINTS.AUTH.SEED_DEMO_USERS);
+    return res.data;
+  },
+};

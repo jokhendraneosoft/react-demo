@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchCourses, deleteCourse, toggleArchiveCourse } from '@/services/apiClient'
+import { courseService } from '@/services/api/course.service'
 import type { Course } from '@/types/api'
 import { useToast } from '@/context/ToastContext'
 
@@ -10,7 +10,7 @@ export default function CourseListPage() {
   const { addToast } = useToast()
 
   useEffect(() => {
-    fetchCourses({ status: 'all' })
+    courseService.fetchCourses({ status: 'all' })
       .then((data) => setCourses(data))
       .catch((err) => {
         console.error(err)
@@ -28,7 +28,7 @@ export default function CourseListPage() {
       const confirm = window.confirm('Are you sure you want to permanently delete this course?')
       if (!confirm) return
       try {
-        await deleteCourse(id)
+        await courseService.deleteCourse(id)
         setCourses((prev) => prev.filter((c) => c._id !== id))
         addToast('Course deleted', 'success')
       } catch (err) {
@@ -42,7 +42,7 @@ export default function CourseListPage() {
   const handleToggleArchive = useCallback(
     async (id: string) => {
       try {
-        const updated = await toggleArchiveCourse(id)
+        const updated = await courseService.toggleArchiveCourse(id)
         setCourses((prev) => prev.map((c) => (c._id === id ? updated : c)))
         addToast(updated.archived ? 'Course archived' : 'Course unarchived', 'success')
       } catch (err) {

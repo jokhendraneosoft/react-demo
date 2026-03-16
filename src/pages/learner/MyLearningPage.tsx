@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchMyCourses } from '@/services/apiClient'
+import { progressService } from '@/services/api/course.service'
 import { useToast } from '@/context/ToastContext'
 import type { EnrollmentSummary } from '@/types/api'
 
@@ -103,7 +103,7 @@ export default function MyLearningPage() {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    fetchMyCourses()
+    progressService.fetchMyCourses()
       .then((data) => setEnrollments(data))
       .catch((err) => {
         console.error(err)

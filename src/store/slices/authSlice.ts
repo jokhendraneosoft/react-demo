@@ -1,8 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { apiClient } from '../../services/apiClient'
-
-export type UserRole = 'learner' | 'admin'
+import { authService } from '../../services/api/auth.service'
+import { STORAGE_KEYS } from '../../utils/constants'
+import type { UserRole } from '../../utils/constants'
 
 export interface AuthUser {
   id: string
@@ -18,7 +18,7 @@ interface AuthState {
   error: string | null
 }
 
-const AUTH_STORAGE_KEY = 'learning-tracker-auth'
+const AUTH_STORAGE_KEY = STORAGE_KEYS.AUTH
 
 function loadInitialState(): AuthState {
   if (typeof window === 'undefined') {
@@ -59,18 +59,17 @@ function loadInitialState(): AuthState {
 
 const initialState: AuthState = loadInitialState()
 
+
 export const login = createAsyncThunk<
   { user: AuthUser; token: string },
   { email: string; password: string },
   { rejectValue: string }
 >('auth/login', async (credentials, { rejectWithValue }) => {
   try {
-    const response = await apiClient.post('/auth/login', credentials)
-    return response.data
-  } catch (err: unknown) {
-    const message =
-      (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error
-        ?.message ?? 'Login failed'
+    const response = await authService.login(credentials)
+    return response
+  } catch (err: any) {
+    const message = err.message || 'Login failed'
     return rejectWithValue(message)
   }
 })
@@ -81,12 +80,10 @@ export const signup = createAsyncThunk<
   { rejectValue: string }
 >('auth/signup', async (credentials, { rejectWithValue }) => {
   try {
-    const response = await apiClient.post('/auth/signup', credentials)
-    return response.data
-  } catch (err: unknown) {
-    const message =
-      (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error
-        ?.message ?? 'Signup failed'
+    const response = await authService.signup(credentials)
+    return response
+  } catch (err: any) {
+    const message = err.message || 'Signup failed'
     return rejectWithValue(message)
   }
 })

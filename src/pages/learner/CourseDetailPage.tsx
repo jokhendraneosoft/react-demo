@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import {
-  enrollInCourse,
-  fetchCourse,
-  fetchCourseProgress,
-  updateLessonProgress,
-} from '@/services/apiClient'
+import { courseService, progressService } from '@/services/api/course.service'
 import { useToast } from '@/context/ToastContext'
 import type { Course, CourseProgress } from '@/types/api'
 
@@ -53,11 +48,11 @@ export default function CourseDetailPage() {
     async function load() {
       try {
         const courseId = id as string
-        const courseData = await fetchCourse(courseId)
+        const courseData = await courseService.fetchCourse(courseId)
         if (cancelled) return
         setCourse(courseData)
 
-        const progressData = await fetchCourseProgress(courseId).catch(() => null)
+        const progressData = await progressService.fetchCourseProgress(courseId).catch(() => null)
         if (!cancelled && progressData) {
           setProgress(normalizeProgress(progressData))
         }
@@ -82,9 +77,9 @@ export default function CourseDetailPage() {
     if (!id) return
     setEnrolling(true)
     try {
-      await enrollInCourse(id)
+      await progressService.enrollInCourse(id)
       addToast('Enrolled successfully. The course is now in My Learning.', 'success')
-      const progressData = await fetchCourseProgress(id)
+      const progressData = await progressService.fetchCourseProgress(id)
       setProgress(normalizeProgress(progressData))
     } catch (err) {
       console.error(err)
@@ -120,7 +115,7 @@ export default function CourseDetailPage() {
     const nextStatus = current === 'completed' ? 'not_started' : 'completed'
 
     try {
-      const updated = await updateLessonProgress(id, lessonId, nextStatus)
+      const updated = await progressService.updateLessonProgress(id, lessonId, nextStatus)
       setProgress(normalizeProgress(updated))
     } catch (err) {
       console.error(err)

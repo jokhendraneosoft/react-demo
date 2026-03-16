@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchAdminOverviewStats } from '@/services/apiClient'
+import { adminService } from '@/services/api/admin.service'
 import type { AdminOverviewStats } from '@/types/api'
 
 export default function StatsDashboardPage() {
   const [stats, setStats] = useState<AdminOverviewStats | null>(null)
 
   useEffect(() => {
-    fetchAdminOverviewStats()
+    adminService.fetchOverviewStats()
       .then((data) => setStats(data))
       .catch((err) => console.error(err))
   }, [])

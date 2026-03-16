@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
-import { apiClient } from '@/services/apiClient'
+import { apiClient } from '@/services/api/client'
 
 export default function ProfilePage() {
   const user = useSelector((state: RootState) => state.auth.user)
