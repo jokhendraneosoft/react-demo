@@ -2,6 +2,7 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import LoginPage from '@/pages/auth/LoginPage'
+import SignupPage from '@/pages/auth/SignupPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import LearnerLayout from '@/routes/LearnerLayout'
 import AdminLayout from '@/routes/AdminLayout'
@@ -48,6 +49,14 @@ function App() {
           element={
             <RequireGuest>
               <LoginPage />
+            </RequireGuest>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <RequireGuest>
+              <SignupPage />
             </RequireGuest>
           }
         />

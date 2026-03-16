@@ -75,6 +75,22 @@ export const login = createAsyncThunk<
   }
 })
 
+export const signup = createAsyncThunk<
+  { user: AuthUser; token: string },
+  { name: string; email: string; password: string; role: UserRole },
+  { rejectValue: string }
+>('auth/signup', async (credentials, { rejectWithValue }) => {
+  try {
+    const response = await apiClient.post('/auth/signup', credentials)
+    return response.data
+  } catch (err: unknown) {
+    const message =
+      (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error
+        ?.message ?? 'Signup failed'
+    return rejectWithValue(message)
+  }
+})
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -113,6 +129,29 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed'
         state.error = action.payload ?? 'Login failed'
+      })
+      .addCase(signup.pending, (state) => {
+        state.status = 'loading'
+        state.error = null
+      })
+      .addCase(
+        signup.fulfilled,
+        (state, action: PayloadAction<{ user: AuthUser; token: string }>) => {
+          state.status = 'succeeded'
+          state.user = action.payload.user
+          state.token = action.payload.token
+
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(
+              AUTH_STORAGE_KEY,
+              JSON.stringify({ user: state.user, token: state.token }),
+            )
+          }
+        },
+      )
+      .addCase(signup.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error = action.payload ?? 'Signup failed'
       })
   },
 })
