@@ -15,13 +15,19 @@ export default function CourseEditorPage() {
 
   const isEdit = Boolean(id)
 
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
-  const [difficulty, setDifficulty] = useState('beginner')
-  const [published, setPublished] = useState(false)
-  const [lessons, setLessons] = useState<LessonInput[]>([{ title: '', content: '' }])
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    imageUrl: '',
+    difficulty: 'beginner',
+    published: false,
+    lessons: [{ title: '', content: '' }] as LessonInput[]
+  })
+
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
 
   useEffect(() => {
     if (!isEdit || !id) return
@@ -29,20 +35,20 @@ export default function CourseEditorPage() {
       .get(`/courses/${id}`)
       .then((res) => {
         const course = res.data
-        setTitle(course.title)
-        setDescription(course.description)
-        setCategory(course.category)
-        setImageUrl(course.imageUrl ?? '')
-        setDifficulty(course.difficulty)
-        setPublished(course.published)
-        setLessons(
-          course.lessons.length > 0
+        setFormData({
+          title: course.title,
+          description: course.description,
+          category: course.category,
+          imageUrl: course.imageUrl ?? '',
+          difficulty: course.difficulty,
+          published: course.published,
+          lessons: course.lessons.length > 0
             ? course.lessons.map((l: { title?: string; content?: string }) => ({
                 title: l.title ?? '',
                 content: l.content ?? '',
               }))
             : [{ title: '', content: '' }],
-        )
+        })
       })
       .catch((err) => console.error(err))
   }, [id, isEdit])
@@ -50,13 +56,13 @@ export default function CourseEditorPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const payload = {
-      title,
-      description,
-      category,
-      imageUrl: imageUrl.trim() || undefined,
-      difficulty,
-      published,
-      lessons: lessons.map((lesson, index) => ({
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
+      imageUrl: formData.imageUrl.trim() || undefined,
+      difficulty: formData.difficulty,
+      published: formData.published,
+      lessons: formData.lessons.map((lesson, index) => ({
         title: lesson.title,
         content: lesson.content,
         order: index + 1,
@@ -79,11 +85,17 @@ export default function CourseEditorPage() {
   }
 
   const updateLesson = (index: number, field: keyof LessonInput, value: string) => {
-    setLessons((prev) => prev.map((lesson, i) => (i === index ? { ...lesson, [field]: value } : lesson)))
+    setFormData((prev) => ({
+      ...prev,
+      lessons: prev.lessons.map((lesson, i) => (i === index ? { ...lesson, [field]: value } : lesson))
+    }))
   }
 
   const addLesson = () => {
-    setLessons((prev) => [...prev, { title: '', content: '' }])
+    setFormData((prev) => ({
+      ...prev,
+      lessons: [...prev.lessons, { title: '', content: '' }]
+    }))
   }
 
   const inputBase =
@@ -125,8 +137,8 @@ export default function CourseEditorPage() {
                 type="text"
                 placeholder="e.g. Introduction to React"
                 className={inputBase}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={formData.title}
+                onChange={(e) => handleChange('title', e.target.value)}
               />
             </div>
             <div>
@@ -135,16 +147,16 @@ export default function CourseEditorPage() {
                 type="text"
                 placeholder="e.g. Web Development"
                 className={inputBase}
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={formData.category}
+                onChange={(e) => handleChange('category', e.target.value)}
               />
             </div>
             <div>
               <label className={labelBase}>Difficulty</label>
               <select
                 className={inputBase}
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
+                value={formData.difficulty}
+                onChange={(e) => handleChange('difficulty', e.target.value)}
               >
                 <option value="beginner">Beginner</option>
                 <option value="intermediate">Intermediate</option>
@@ -157,8 +169,8 @@ export default function CourseEditorPage() {
                   id="published"
                   type="checkbox"
                   className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-2 focus:ring-sky-500 focus:ring-offset-0 focus:ring-offset-slate-950"
-                  checked={published}
-                  onChange={(e) => setPublished(e.target.checked)}
+                  checked={formData.published}
+                  onChange={(e) => handleChange('published', e.target.checked)}
                 />
                 <span className="text-sm font-medium text-slate-200">Published</span>
               </label>
@@ -179,8 +191,8 @@ export default function CourseEditorPage() {
             rows={4}
             placeholder="Describe what learners will get from this course..."
             className={`${inputBase} min-h-[100px] resize-y`}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={formData.description}
+            onChange={(e) => handleChange('description', e.target.value)}
           />
         </section>
 
@@ -196,13 +208,13 @@ export default function CourseEditorPage() {
             type="url"
             placeholder="https://example.com/cover.jpg"
             className={inputBase}
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
+            value={formData.imageUrl}
+            onChange={(e) => handleChange('imageUrl', e.target.value)}
           />
-          {imageUrl.trim() && (
+          {formData.imageUrl.trim() && (
             <div className="mt-3 overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
               <img
-                src={imageUrl}
+                src={formData.imageUrl}
                 alt="Cover preview"
                 className="h-32 w-full object-cover"
                 onError={(e) => {
@@ -232,7 +244,7 @@ export default function CourseEditorPage() {
           </div>
 
           <div className="space-y-4">
-            {lessons.map((lesson, index) => (
+            {formData.lessons.map((lesson, index) => (
               <div
                 key={index}
                 className="rounded-lg border border-slate-700/80 bg-slate-950/80 p-4 transition-colors hover:border-slate-600"

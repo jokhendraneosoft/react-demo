@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, memo, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { courseService, progressService } from '@/services/api/course.service'
 import { useToast } from '@/context/ToastContext'
@@ -27,6 +27,85 @@ function normalizeProgress(raw: unknown): CourseProgress | null {
   }
 }
 
+const CourseLessons = memo(function CourseLessons({
+  lessons,
+  lessonStatus,
+  onToggleLesson,
+}: {
+  lessons: Course['lessons']
+  lessonStatus: Map<string, 'not_started' | 'in_progress' | 'completed'>
+  onToggleLesson: (lessonId: string) => void
+}) {
+  return (
+    <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm">
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
+        Lessons
+      </h3>
+      <ul className="space-y-4">
+        {lessons.map((lesson) => {
+          const status = lessonStatus.get(String(lesson._id))
+          const isCompleted = status === 'completed'
+          return (
+            <li
+              key={lesson._id}
+              className={`rounded-lg border p-4 transition-colors ${
+                isCompleted
+                  ? 'border-emerald-800/50 bg-emerald-950/20'
+                  : 'border-slate-700/80 bg-slate-950/80 hover:border-slate-600'
+              }`}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+                      isCompleted ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {isCompleted ? '✓' : lesson.order}
+                  </span>
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-slate-100">
+                      {lesson.title}
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-400 line-clamp-2">
+                      {lesson.content}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                      status === 'completed'
+                        ? 'bg-emerald-900/60 text-emerald-300'
+                        : status === 'in_progress'
+                          ? 'bg-sky-900/60 text-sky-300'
+                          : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {status === 'completed' ? 'Done' : status === 'in_progress' ? 'In progress' : 'Not started'}
+                  </span>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-2 focus:ring-sky-500 focus:ring-offset-0 focus:ring-offset-slate-950"
+                      checked={isCompleted}
+                      onChange={() => onToggleLesson(String(lesson._id))}
+                    />
+                    Mark done
+                  </label>
+                </div>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+      {lessons.length === 0 && (
+        <p className="py-8 text-center text-sm text-slate-500">No lessons yet.</p>
+      )}
+    </section>
+  )
+})
+
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { addToast } = useToast()
@@ -40,7 +119,7 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (!id) return
 
-    let cancelled = false
+    const controller = new AbortController()
     setLoading(true)
     setLoadError(null)
     setProgress(null)
@@ -48,28 +127,34 @@ export default function CourseDetailPage() {
     async function load() {
       try {
         const courseId = id as string
-        const courseData = await courseService.fetchCourse(courseId)
-        if (cancelled) return
+        const courseData = await courseService.fetchCourse(courseId, { signal: controller.signal })
         setCourse(courseData)
 
-        const progressData = await progressService.fetchCourseProgress(courseId).catch(() => null)
-        if (!cancelled && progressData) {
+        const progressData = await progressService.fetchCourseProgress(courseId, { signal: controller.signal }).catch((err) => {
+          if (err.name !== 'CanceledError') {
+            return null
+          }
+          throw err
+        })
+        if (progressData) {
           setProgress(normalizeProgress(progressData))
         }
-      } catch (err) {
-        if (!cancelled) {
+      } catch (err: any) {
+        if (err.name !== 'CanceledError') {
           setLoadError(err instanceof Error ? err.message : 'Failed to load course')
           addToast('Failed to load course', 'error')
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
       }
     }
 
     load()
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [id, addToast])
 
@@ -109,7 +194,7 @@ export default function CourseDetailPage() {
     return map
   }, [course, progress])
 
-  const handleToggleLesson = async (lessonId: string) => {
+  const handleToggleLesson = useCallback(async (lessonId: string) => {
     if (!id) return
     const current = lessonStatus.get(lessonId) ?? 'not_started'
     const nextStatus = current === 'completed' ? 'not_started' : 'completed'
@@ -121,7 +206,7 @@ export default function CourseDetailPage() {
       console.error(err)
       addToast('Failed to update progress', 'error')
     }
-  }
+  }, [id, lessonStatus, addToast])
 
   if (loading && !course) {
     return (
@@ -248,72 +333,11 @@ export default function CourseDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm">
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
-              Lessons
-            </h3>
-            <ul className="space-y-4">
-              {course.lessons.map((lesson) => {
-                const status = lessonStatus.get(String(lesson._id))
-                const isCompleted = status === 'completed'
-                return (
-                  <li
-                    key={lesson._id}
-                    className={`rounded-lg border p-4 transition-colors ${
-                      isCompleted
-                        ? 'border-emerald-800/50 bg-emerald-950/20'
-                        : 'border-slate-700/80 bg-slate-950/80 hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
-                            isCompleted ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-800 text-slate-300'
-                          }`}
-                        >
-                          {isCompleted ? '✓' : lesson.order}
-                        </span>
-                        <div className="min-w-0">
-                          <h4 className="font-semibold text-slate-100">
-                            {lesson.title}
-                          </h4>
-                          <p className="mt-1 text-sm text-slate-400 line-clamp-2">
-                            {lesson.content}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            status === 'completed'
-                              ? 'bg-emerald-900/60 text-emerald-300'
-                              : status === 'in_progress'
-                                ? 'bg-sky-900/60 text-sky-300'
-                                : 'bg-slate-800 text-slate-300'
-                          }`}
-                        >
-                          {status === 'completed' ? 'Done' : status === 'in_progress' ? 'In progress' : 'Not started'}
-                        </span>
-                        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-2 focus:ring-sky-500 focus:ring-offset-0 focus:ring-offset-slate-950"
-                            checked={isCompleted}
-                            onChange={() => handleToggleLesson(String(lesson._id))}
-                          />
-                          Mark done
-                        </label>
-                      </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-            {course.lessons.length === 0 && (
-              <p className="py-8 text-center text-sm text-slate-500">No lessons yet.</p>
-            )}
-          </section>
+          <CourseLessons 
+            lessons={course.lessons} 
+            lessonStatus={lessonStatus} 
+            onToggleLesson={handleToggleLesson} 
+          />
         </>
       )}
     </div>

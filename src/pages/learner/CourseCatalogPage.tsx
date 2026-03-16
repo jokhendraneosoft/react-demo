@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { courseService } from '@/services/api/course.service'
 import { Link } from 'react-router-dom'
 import type { Course } from '@/types/api'
+import { useDebounce } from '@/hooks/useDebounce'
 
 const difficultyGradients: Record<string, string> = {
   beginner: 'from-emerald-600/90 to-teal-700/90',
@@ -74,37 +75,36 @@ export default function CourseCatalogPage() {
   const [difficulty, setDifficulty] = useState('')
   const [status, setStatus] = useState<'all' | 'published' | 'draft'>('published')
 
-  useEffect(() => {
-    let cancelled = false
+  const debouncedSearch = useDebounce(search, 300)
 
-    const timeout = setTimeout(() => {
-      courseService.fetchCourses({
-        q: search || undefined,
-        category: category || undefined,
-        difficulty: (difficulty || undefined) as Course['difficulty'] | undefined,
-        status,
+  useEffect(() => {
+    const controller = new AbortController()
+
+    courseService.fetchCourses({
+      q: debouncedSearch || undefined,
+      category: category || undefined,
+      difficulty: (difficulty || undefined) as Course['difficulty'] | undefined,
+      status,
+    }, { signal: controller.signal })
+      .then((data) => {
+        setCourses(data)
       })
-        .then((data) => {
-          if (!cancelled) {
-            setCourses(data)
-          }
-        })
-        .catch((err) => console.error(err))
-    }, 300)
+      .catch((err) => {
+        if (err.name !== 'CanceledError') {
+          console.error(err)
+        }
+      })
 
     return () => {
-      cancelled = true
-      clearTimeout(timeout)
+      controller.abort()
     }
-  }, [search, category, difficulty, status])
+  }, [debouncedSearch, category, difficulty, status])
 
   const availableCategories = useMemo(() => {
     const set = new Set<string>()
     courses.forEach((c) => set.add(c.category))
     return Array.from(set)
   }, [courses])
-
-  const filteredCourses = useMemo(() => courses, [courses])
 
   return (
     <div className="space-y-6">
@@ -157,10 +157,10 @@ export default function CourseCatalogPage() {
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        {filteredCourses.map((course) => (
+        {courses.map((course) => (
           <CourseCard key={course._id} course={course} />
         ))}
-        {filteredCourses.length === 0 && (
+        {courses.length === 0 && (
           <p className="col-span-full text-sm text-slate-400">No courses match your filters.</p>
         )}
       </div>
