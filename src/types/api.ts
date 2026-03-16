@@ -83,3 +83,17 @@ export interface CourseFilters {
   status?: 'published' | 'draft' | 'all'
 }
 
+export interface SavedCourseSummary {
+  id: string
+  title: string
+  description: string
+  category: string
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+  imageUrl?: string
+  estimatedDurationMinutes?: number
+}
+
+export interface RecentCourseSummary extends SavedCourseSummary {
+  lastViewedAt: string
+}
+

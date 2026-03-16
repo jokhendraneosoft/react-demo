@@ -138,6 +138,19 @@ export default function CourseDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [enrolling, setEnrolling] = useState(false)
   const [coverImgFailed, setCoverImgFailed] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
+  const [recommendations, setRecommendations] = useState<
+    {
+      id: string
+      title: string
+      description: string
+      category: string
+      difficulty: 'beginner' | 'intermediate' | 'advanced'
+      imageUrl?: string
+      estimatedDurationMinutes?: number
+    }[]
+  >([])
 
   useEffect(() => {
     if (!id) return
@@ -162,11 +175,18 @@ export default function CourseDetailPage() {
         if (progressData) {
           setProgress(normalizeProgress(progressData))
         }
+
+        courseService
+          .fetchRecommendations(courseId)
+          .then((recs) => setRecommendations(recs))
+          .catch((err) => {
+            console.error(err)
+          })
       } catch (err: any) {
         if (err.name !== 'CanceledError') {
           setLoadError(err instanceof Error ? err.message : 'Failed to load course')
           addToast('Failed to load course', 'error')
-        }
+      }
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false)
@@ -194,6 +214,24 @@ export default function CourseDetailPage() {
       addToast('Failed to enroll. You may already be enrolled.', 'error')
     } finally {
       setEnrolling(false)
+    }
+  }
+
+  const handleToggleSaved = async () => {
+    if (!id || saving) return
+    setSaving(true)
+    try {
+      const result = await courseService.toggleSavedCourse(id)
+      setIsSaved(result.saved)
+      addToast(
+        result.saved ? 'Saved course to your list' : 'Removed course from saved',
+        'success'
+      )
+    } catch (err) {
+      console.error(err)
+      addToast('Failed to update saved courses', 'error')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -253,6 +291,38 @@ export default function CourseDetailPage() {
   const imageUrl = course.imageUrl?.trim()
   const showImage = imageUrl && !coverImgFailed
 
+  const totalMinutes =
+    typeof course.estimatedDurationMinutes === 'number' && course.estimatedDurationMinutes > 0
+      ? course.estimatedDurationMinutes
+      : (course.lessons ?? []).reduce(
+          (sum, l) =>
+            sum +
+            (l.estimatedDurationMinutes && l.estimatedDurationMinutes > 0
+              ? l.estimatedDurationMinutes
+              : 0),
+          0
+        )
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  const durationLabel =
+    totalMinutes > 0
+      ? hours > 0
+        ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`
+        : `${minutes}m`
+      : null
+
+  const remainingMinutes =
+    progress && totalMinutes > 0 ? Math.round(totalMinutes * (1 - progress.progress / 100)) : 0
+  const remainingHours = Math.floor(remainingMinutes / 60)
+  const remainingMinsOnly = remainingMinutes % 60
+  const remainingLabel =
+    remainingMinutes > 0
+      ? remainingHours > 0
+        ? `${remainingHours}h${remainingMinsOnly > 0 ? ` ${remainingMinsOnly}m` : ''}`
+        : `${remainingMinsOnly}m`
+      : null
+
   return (
     <div className="space-y-6 pb-8">
       {/* Hero / cover */}
@@ -289,9 +359,22 @@ export default function CourseDetailPage() {
                   <span className="rounded-full bg-slate-700/90 px-3 py-1 text-xs text-slate-200 backdrop-blur-sm">
                     {course.category}
                   </span>
+                  {durationLabel && (
+                    <span className="rounded-full bg-slate-800/90 px-3 py-1 text-xs text-slate-200 backdrop-blur-sm">
+                      ~{durationLabel} total
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleSaved}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-600/80 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-100 hover:border-sky-500 hover:text-sky-200 disabled:opacity-50"
+                >
+                  <span>{isSaved ? '★ Saved' : '☆ Save course'}</span>
+                </button>
                 {!isEnrolled && (
                   <button
                     type="button"
@@ -343,9 +426,18 @@ export default function CourseDetailPage() {
         <>
           <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                Your progress
-              </h3>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+                  Your progress
+                </h3>
+                {durationLabel && (
+                  <p className="text-xs text-slate-500">
+                    {remainingLabel
+                      ? `~${remainingLabel} remaining of ~${durationLabel}`
+                      : `~${durationLabel} total`}
+                  </p>
+                )}
+              </div>
               <span className="text-2xl font-bold text-sky-400">{progress!.progress}%</span>
             </div>
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
@@ -363,6 +455,41 @@ export default function CourseDetailPage() {
             courseId={course._id}
           />
         </>
+      )}
+      {recommendations.length > 0 && (
+        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            You might also like
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recommendations.map((rec) => (
+              <Link
+                key={rec.id}
+                to={`/learner/courses/${rec.id}`}
+                className="group flex flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-950/80 hover:border-sky-500/60"
+              >
+                <div className="relative h-24 w-full overflow-hidden bg-slate-800">
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-600/90 to-slate-700/90">
+                    <span className="text-3xl font-bold text-white/20 select-none">
+                      {rec.title.charAt(0)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col p-3">
+                  <p className="line-clamp-2 text-sm font-semibold text-slate-100 group-hover:text-sky-200">
+                    {rec.title}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+                    {rec.description}
+                  </p>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {rec.category} · {rec.difficulty}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   )

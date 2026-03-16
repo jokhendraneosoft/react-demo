@@ -1,6 +1,13 @@
 import { apiClient } from './client';
 import { API_ENDPOINTS } from './endpoints';
-import type { Course, CourseFilters, CourseProgress, EnrollmentSummary } from '@/types/api';
+import type {
+  Course,
+  CourseFilters,
+  CourseProgress,
+  EnrollmentSummary,
+  RecentCourseSummary,
+  SavedCourseSummary,
+} from '@/types/api';
 import type { AxiosRequestConfig } from 'axios';
 
 export const courseService = {
@@ -21,12 +28,44 @@ export const courseService = {
     return res.data;
   },
 
+  fetchRecommendations: async (id: string) => {
+    const res = await apiClient.get<
+      {
+        id: string;
+        title: string;
+        description: string;
+        category: string;
+        difficulty: 'beginner' | 'intermediate' | 'advanced';
+        imageUrl?: string;
+        estimatedDurationMinutes?: number;
+      }[]
+    >(API_ENDPOINTS.COURSES.RECOMMENDATIONS(id));
+    return res.data;
+  },
+
   deleteCourse: async (id: string) => {
     await apiClient.delete(API_ENDPOINTS.COURSES.DETAILS(id));
   },
 
   toggleArchiveCourse: async (id: string) => {
     const res = await apiClient.post<Course>(API_ENDPOINTS.COURSES.ARCHIVE(id));
+    return res.data;
+  },
+
+  fetchSavedCourses: async () => {
+    const res = await apiClient.get<SavedCourseSummary[]>(API_ENDPOINTS.LEARNER.SAVED_COURSES);
+    return res.data;
+  },
+
+  toggleSavedCourse: async (id: string) => {
+    const res = await apiClient.post<{ saved: boolean; savedCourseIds: string[] }>(
+      API_ENDPOINTS.LEARNER.TOGGLE_SAVE(id)
+    );
+    return res.data;
+  },
+
+  fetchRecentCourses: async () => {
+    const res = await apiClient.get<RecentCourseSummary[]>(API_ENDPOINTS.LEARNER.RECENT_COURSES);
     return res.data;
   },
 };

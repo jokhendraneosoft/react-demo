@@ -16,6 +16,23 @@ function CourseCard({ course }: { course: Course }) {
   const [imgFailed, setImgFailed] = useState(false)
   const showImage = imageUrl && !imgFailed
 
+  const totalMinutes =
+    typeof course.estimatedDurationMinutes === 'number' && course.estimatedDurationMinutes > 0
+      ? course.estimatedDurationMinutes
+      : (course.lessons ?? []).reduce(
+          (sum, l) => sum + (l.estimatedDurationMinutes && l.estimatedDurationMinutes > 0 ? l.estimatedDurationMinutes : 0),
+          0
+        )
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  const durationLabel =
+    totalMinutes > 0
+      ? hours > 0
+        ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`
+        : `${minutes}m`
+      : null
+
   return (
     <Link
       to={`/learner/courses/${course._id}`}
@@ -56,8 +73,9 @@ function CourseCard({ course }: { course: Course }) {
           {course.description}
         </p>
         <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
-          <span className="text-xs text-slate-500">
+          <span className="text-[11px] text-slate-500">
             {course.lessons?.length ?? 0} lesson{(course.lessons?.length ?? 0) !== 1 ? 's' : ''}
+            {durationLabel ? ` · ~${durationLabel}` : ''}
           </span>
           <span className="text-xs font-medium text-sky-400 group-hover:text-sky-300">
             View course →

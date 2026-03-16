@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { progressService } from '@/services/api/course.service'
+import { courseService, progressService } from '@/services/api/course.service'
 import { useToast } from '@/context/ToastContext'
-import type { EnrollmentSummary } from '@/types/api'
+import type { EnrollmentSummary, RecentCourseSummary, SavedCourseSummary } from '@/types/api'
 
 const difficultyGradients: Record<string, string> = {
   beginner: 'from-emerald-600/90 to-teal-700/90',
@@ -97,18 +97,29 @@ function LearningCard({ enrollment }: { enrollment: EnrollmentSummary }) {
 export default function MyLearningPage() {
   const { addToast } = useToast()
   const [enrollments, setEnrollments] = useState<EnrollmentSummary[]>([])
+  const [savedCourses, setSavedCourses] = useState<SavedCourseSummary[]>([])
+  const [recentCourses, setRecentCourses] = useState<RecentCourseSummary[]>([])
+  const [activeTab, setActiveTab] = useState<'learning' | 'saved'>('learning')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
     setError(null)
-    progressService.fetchMyCourses()
-      .then((data) => setEnrollments(data))
+    Promise.all([
+      progressService.fetchMyCourses(),
+      courseService.fetchSavedCourses(),
+      courseService.fetchRecentCourses(),
+    ])
+      .then(([enrollmentData, savedData, recentData]) => {
+        setEnrollments(enrollmentData)
+        setSavedCourses(savedData)
+        setRecentCourses(recentData)
+      })
       .catch((err) => {
         console.error(err)
-        setError('Failed to load your courses')
-        addToast('Failed to load your courses', 'error')
+        setError('Failed to load your learning data')
+        addToast('Failed to load your learning data', 'error')
       })
       .finally(() => setLoading(false))
   }, [addToast])
@@ -119,6 +130,8 @@ export default function MyLearningPage() {
     return Math.round(total / enrollments.length)
   }, [enrollments])
 
+  const hasRecent = recentCourses.length > 0
+
   const mostRecent = useMemo(() => {
     if (enrollments.length === 0) return null
     return [...enrollments].sort((a, b) => {
@@ -128,23 +141,17 @@ export default function MyLearningPage() {
     })[0]
   }, [enrollments])
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-slate-400">
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
-        Loading your courses...
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <p className="text-sm text-red-400">{error}</p>
-    )
-  }
-
   return (
     <div className="space-y-6">
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
+          Loading your learning data...
+        </div>
+      )}
+      {error && !loading && (
+        <p className="text-sm text-red-400">{error}</p>
+      )}
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-slate-100">My Learning</h2>
@@ -167,6 +174,35 @@ export default function MyLearningPage() {
           )}
         </div>
       </header>
+
+      {hasRecent && recentCourses.length > 0 && (
+        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Recently viewed
+            </p>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {recentCourses.map((course) => (
+              <Link
+                key={course.id}
+                to={`/learner/courses/${course.id}`}
+                className="min-w-[220px] max-w-[260px] flex-1 rounded-lg border border-slate-800 bg-slate-950/80 p-3 text-xs hover:border-sky-500"
+              >
+                <p className="line-clamp-2 font-semibold text-slate-100">
+                  {course.title}
+                </p>
+                <p className="mt-1 line-clamp-2 text-[11px] text-slate-400">
+                  {course.description}
+                </p>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  {course.category} · {course.difficulty}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {mostRecent && mostRecent.course && (
         <section className="overflow-hidden rounded-xl border border-sky-700/50 bg-gradient-to-br from-sky-950/60 to-slate-900 p-4 shadow-lg">
@@ -194,10 +230,37 @@ export default function MyLearningPage() {
       )}
 
       <div>
-        <h3 className="mb-4 text-sm font-medium uppercase tracking-wide text-slate-500">
-          All your courses
-        </h3>
-        {enrollments.length === 0 ? (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-medium uppercase tracking-wide text-slate-500">
+            My learning
+          </h3>
+          <div className="inline-flex rounded-full border border-slate-700 bg-slate-900 p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('learning')}
+              className={`rounded-full px-3 py-1 ${
+                activeTab === 'learning'
+                  ? 'bg-slate-800 text-slate-100'
+                  : 'text-slate-400 hover:text-slate-100'
+              }`}
+            >
+              Enrolled
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('saved')}
+              className={`rounded-full px-3 py-1 ${
+                activeTab === 'saved'
+                  ? 'bg-slate-800 text-slate-100'
+                  : 'text-slate-400 hover:text-slate-100'
+              }`}
+            >
+              Saved
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'learning' && (enrollments.length === 0 ? (
           <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-12 text-center">
             <p className="text-slate-400">You haven&apos;t enrolled in any courses yet.</p>
             <Link
@@ -213,6 +276,54 @@ export default function MyLearningPage() {
               <LearningCard key={enrollment.id} enrollment={enrollment} />
             ))}
           </div>
+        ))}
+
+        {activeTab === 'saved' && (
+          savedCourses.length === 0 ? (
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-12 text-center">
+              <p className="text-slate-400">You haven&apos;t saved any courses yet.</p>
+              <Link
+                to="/learner/catalog"
+                className="mt-3 inline-block text-sm font-medium text-sky-400 hover:text-sky-300"
+              >
+                Browse catalog →
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {savedCourses.map((course) => (
+                <Link
+                  key={course.id}
+                  to={`/learner/courses/${course.id}`}
+                  className="group flex flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg transition-all duration-200 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/5 hover:-translate-y-0.5"
+                >
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-800">
+                    <div className="h-full w-full bg-gradient-to-br from-slate-600/90 to-slate-700/90 flex items-center justify-center">
+                      <span className="text-4xl font-bold text-white/20 select-none">
+                        {course.title.charAt(0)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-1 flex-col p-4">
+                    <h3 className="mb-2 line-clamp-2 text-base font-semibold text-slate-100 transition-colors group-hover:text-sky-200">
+                      {course.title}
+                    </h3>
+                    <p className="mb-3 line-clamp-3 flex-1 text-sm text-slate-400">
+                      {course.description}
+                    </p>
+                    <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                      <span className="text-xs text-slate-500">
+                        {course.category} · {course.difficulty}
+                      </span>
+                      <span className="text-xs font-medium text-sky-400 group-hover:text-sky-300">
+                        View course →
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

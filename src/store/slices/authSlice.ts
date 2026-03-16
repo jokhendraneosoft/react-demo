@@ -14,6 +14,7 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null
   token: string | null
+  refreshToken: string | null
   status: 'idle' | 'loading' | 'succeeded' | 'failed'
   error: string | null
 }
@@ -25,6 +26,7 @@ function loadInitialState(): AuthState {
     return {
       user: null,
       token: null,
+      refreshToken: null,
       status: 'idle',
       error: null,
     }
@@ -36,14 +38,16 @@ function loadInitialState(): AuthState {
       return {
         user: null,
         token: null,
+        refreshToken: null,
         status: 'idle',
         error: null,
       }
     }
-    const parsed = JSON.parse(raw) as Pick<AuthState, 'user' | 'token'>
+    const parsed = JSON.parse(raw) as Pick<AuthState, 'user' | 'token' | 'refreshToken'>
     return {
       user: parsed.user ?? null,
       token: parsed.token ?? null,
+      refreshToken: parsed.refreshToken ?? null,
       status: parsed.token ? 'succeeded' : 'idle',
       error: null,
     }
@@ -51,6 +55,7 @@ function loadInitialState(): AuthState {
     return {
       user: null,
       token: null,
+      refreshToken: null,
       status: 'idle',
       error: null,
     }
@@ -61,7 +66,7 @@ const initialState: AuthState = loadInitialState()
 
 
 export const login = createAsyncThunk<
-  { user: AuthUser; token: string },
+  { user: AuthUser; token: string; refreshToken: string },
   { email: string; password: string },
   { rejectValue: string }
 >('auth/login', async (credentials, { rejectWithValue }) => {
@@ -75,7 +80,7 @@ export const login = createAsyncThunk<
 })
 
 export const signup = createAsyncThunk<
-  { user: AuthUser; token: string },
+  { user: AuthUser; token: string; refreshToken: string },
   { name: string; email: string; password: string; role: UserRole },
   { rejectValue: string }
 >('auth/signup', async (credentials, { rejectWithValue }) => {
@@ -95,10 +100,28 @@ const authSlice = createSlice({
     logout(state) {
       state.user = null
       state.token = null
+      state.refreshToken = null
       state.status = 'idle'
       state.error = null
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      }
+    },
+    setTokens(
+      state,
+      action: PayloadAction<{ token: string; refreshToken: string; user?: AuthUser | null }>,
+    ) {
+      if (action.payload.user) {
+        state.user = action.payload.user
+      }
+      state.token = action.payload.token
+      state.refreshToken = action.payload.refreshToken
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          AUTH_STORAGE_KEY,
+          JSON.stringify({ user: state.user, token: state.token, refreshToken: state.refreshToken }),
+        )
       }
     },
   },
@@ -110,15 +133,20 @@ const authSlice = createSlice({
       })
       .addCase(
         login.fulfilled,
-        (state, action: PayloadAction<{ user: AuthUser; token: string }>) => {
+        (state, action: PayloadAction<{ user: AuthUser; token: string; refreshToken: string }>) => {
           state.status = 'succeeded'
           state.user = action.payload.user
           state.token = action.payload.token
+          state.refreshToken = action.payload.refreshToken
 
           if (typeof window !== 'undefined') {
             window.localStorage.setItem(
               AUTH_STORAGE_KEY,
-              JSON.stringify({ user: state.user, token: state.token }),
+              JSON.stringify({
+                user: state.user,
+                token: state.token,
+                refreshToken: state.refreshToken,
+              }),
             )
           }
         },
@@ -133,15 +161,20 @@ const authSlice = createSlice({
       })
       .addCase(
         signup.fulfilled,
-        (state, action: PayloadAction<{ user: AuthUser; token: string }>) => {
+        (state, action: PayloadAction<{ user: AuthUser; token: string; refreshToken: string }>) => {
           state.status = 'succeeded'
           state.user = action.payload.user
           state.token = action.payload.token
+          state.refreshToken = action.payload.refreshToken
 
           if (typeof window !== 'undefined') {
             window.localStorage.setItem(
               AUTH_STORAGE_KEY,
-              JSON.stringify({ user: state.user, token: state.token }),
+              JSON.stringify({
+                user: state.user,
+                token: state.token,
+                refreshToken: state.refreshToken,
+              }),
             )
           }
         },
@@ -153,6 +186,6 @@ const authSlice = createSlice({
   },
 })
 
-export const { logout } = authSlice.actions
+export const { logout, setTokens } = authSlice.actions
 export default authSlice.reducer
 

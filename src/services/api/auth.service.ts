@@ -16,6 +16,7 @@ interface SignupCredentials extends LoginCredentials {
 interface AuthResponse {
   user: AuthUser;
   token: string;
+  refreshToken: string;
 }
 
 export const authService = {
@@ -26,6 +27,11 @@ export const authService = {
 
   signup: async (credentials: SignupCredentials) => {
     const res = await apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH.SIGNUP, credentials);
+    return res.data;
+  },
+
+  refresh: async (refreshToken: string) => {
+    const res = await apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH.REFRESH, { refreshToken });
     return res.data;
   },
 

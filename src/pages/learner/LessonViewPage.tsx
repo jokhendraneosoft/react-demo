@@ -66,13 +66,14 @@ export default function LessonViewPage() {
 
     async function load() {
       try {
-        const data = await courseService.fetchCourse(courseId, { signal: controller.signal })
+        const cid = String(courseId)
+        const data = await courseService.fetchCourse(cid, { signal: controller.signal })
         setCourse(data)
         const l = data.lessons.find((x) => String(x._id) === String(lessonId)) ?? null
         setLesson(l)
 
         const progressData = await progressService
-          .fetchCourseProgress(courseId, { signal: controller.signal })
+          .fetchCourseProgress(cid, { signal: controller.signal })
           .catch((err) => {
             if (err.name !== 'CanceledError') return null
             throw err
@@ -100,6 +101,13 @@ export default function LessonViewPage() {
     if (!progress || !lesson) return false
     return progress.completedLessonIds.map(String).includes(String(lesson._id))
   }, [progress, lesson])
+
+  // If the lesson is already completed (e.g. after a page refresh), keep the quiz locked
+  useEffect(() => {
+    if (isCompleted) {
+      setSubmitted(true)
+    }
+  }, [isCompleted])
 
   const handleSelectOption = (questionId: string, optionId: string, type: 'single' | 'multiple') => {
     setSelected((prev) => {
@@ -179,6 +187,18 @@ export default function LessonViewPage() {
   }
 
   const embedUrl = getYouTubeEmbedUrl(lesson.videoUrl)
+  const durationMinutes =
+    typeof lesson.estimatedDurationMinutes === 'number' && lesson.estimatedDurationMinutes > 0
+      ? lesson.estimatedDurationMinutes
+      : 0
+  const durationLabel =
+    durationMinutes > 0
+      ? durationMinutes >= 60
+        ? `${Math.floor(durationMinutes / 60)}h${
+            durationMinutes % 60 > 0 ? ` ${durationMinutes % 60}m` : ''
+          }`
+        : `${durationMinutes}m`
+      : null
 
   return (
     <div className="space-y-6 pb-8">
@@ -191,7 +211,10 @@ export default function LessonViewPage() {
             ← Back to course
           </Link>
           <h1 className="text-xl font-semibold text-slate-100">{lesson.title}</h1>
-          <p className="text-xs text-slate-400">{course.title}</p>
+          <p className="text-xs text-slate-400">
+            {course.title}
+            {durationLabel ? ` · ~${durationLabel}` : ''}
+          </p>
         </div>
         {isCompleted && (
           <span className="rounded-full bg-emerald-500/20 px-4 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
