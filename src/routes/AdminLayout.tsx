@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { RootState, AppDispatch } from '@/store'
 import { logout } from '@/store/slices/authSlice'
+import { ROUTES } from '@/routes/paths'
 
 export default function AdminLayout() {
   const dispatch = useDispatch<AppDispatch>()
@@ -16,7 +17,7 @@ export default function AdminLayout() {
         </div>
         <nav className="space-y-2">
           <NavLink
-            to="/admin/courses"
+            to={ROUTES.ADMIN.COURSES}
             className={({ isActive }) =>
               `block rounded px-3 py-2 text-sm ${isActive ? 'bg-slate-800' : 'hover:bg-slate-800'}`
             }
@@ -24,7 +25,7 @@ export default function AdminLayout() {
             Courses
           </NavLink>
           <NavLink
-            to="/admin/stats"
+            to={ROUTES.ADMIN.STATS}
             className={({ isActive }) =>
               `block rounded px-3 py-2 text-sm ${isActive ? 'bg-slate-800' : 'hover:bg-slate-800'}`
             }

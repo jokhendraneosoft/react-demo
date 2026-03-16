@@ -14,6 +14,7 @@ import ProfilePage from '@/pages/learner/ProfilePage'
 import AdminCourseListPage from '@/pages/admin/CourseListPage'
 import AdminCourseEditorPage from '@/pages/admin/CourseEditorPage'
 import AdminStatsDashboardPage from '@/pages/admin/StatsDashboardPage'
+import { ROUTES } from '@/routes/paths'
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'learner' | 'admin' }) {
   const { user } = useSelector((state: RootState) => state.auth)
@@ -33,7 +34,7 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
   const { user } = useSelector((state: RootState) => state.auth)
 
   if (user) {
-    const target = user.role === 'admin' ? '/admin/courses' : '/learner/catalog'
+    const target = user.role === 'admin' ? ROUTES.ADMIN.COURSES : ROUTES.LEARNER.CATALOG
     return <Navigate to={target} replace />
   }
 
@@ -44,9 +45,9 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to={ROUTES.AUTH.LOGIN} replace />} />
         <Route
-          path="/login"
+          path={ROUTES.AUTH.LOGIN}
           element={
             <RequireGuest>
               <LoginPage />
@@ -54,7 +55,7 @@ function App() {
           }
         />
         <Route
-          path="/signup"
+          path={ROUTES.AUTH.SIGNUP}
           element={
             <RequireGuest>
               <SignupPage />
@@ -63,14 +64,14 @@ function App() {
         />
 
         <Route
-          path="/learner"
+          path={ROUTES.LEARNER.ROOT}
           element={
             <RequireAuth role="learner">
               <LearnerLayout />
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="catalog" replace />} />
+          <Route index element={<Navigate to={ROUTES.LEARNER.CATALOG} replace />} />
           <Route path="catalog" element={<CourseCatalogPage />} />
           <Route path="courses/:id" element={<CourseDetailPage />} />
           <Route path="courses/:courseId/lessons/:lessonId" element={<LessonViewPage />} />
@@ -79,14 +80,14 @@ function App() {
         </Route>
 
         <Route
-          path="/admin"
+          path={ROUTES.ADMIN.ROOT}
           element={
             <RequireAuth role="admin">
               <AdminLayout />
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="courses" replace />} />
+          <Route index element={<Navigate to={ROUTES.ADMIN.COURSES} replace />} />
           <Route path="courses" element={<AdminCourseListPage />} />
           <Route path="courses/new" element={<AdminCourseEditorPage />} />
           <Route path="courses/:id/edit" element={<AdminCourseEditorPage />} />

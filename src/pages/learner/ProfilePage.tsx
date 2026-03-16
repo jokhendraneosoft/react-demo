@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
-import { apiClient } from '@/services/api/client'
+import { userService } from '@/services/api/user.service'
 
 export default function ProfilePage() {
   const user = useSelector((state: RootState) => state.auth.user)
@@ -11,11 +11,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return
-    apiClient
-      .get('/users/me')
+    userService
+      .fetchMe()
       .then((res) => {
-        setPreferredTopics(res.data.preferences?.preferredTopics ?? [])
-        setTheme(res.data.preferences?.theme ?? 'light')
+        setPreferredTopics(res.preferences?.preferredTopics ?? [])
+        setTheme(res.preferences?.theme ?? 'light')
       })
       .catch((err) => console.error(err))
   }, [user])
@@ -23,7 +23,7 @@ export default function ProfilePage() {
   const handleSave = async () => {
     try {
       setSaving(true)
-      await apiClient.put('/users/me/preferences', { preferredTopics, theme })
+      await userService.updatePreferences({ preferredTopics, theme })
     } catch (err) {
       console.error(err)
     } finally {

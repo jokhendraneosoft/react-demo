@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { RootState, AppDispatch } from '@/store'
 import { logout } from '@/store/slices/authSlice'
+import { ROUTES } from '@/routes/paths'
 
 export default function LearnerLayout() {
   const dispatch = useDispatch<AppDispatch>()
@@ -16,7 +17,7 @@ export default function LearnerLayout() {
         </div>
         <nav className="space-y-2">
           <NavLink
-            to="/learner/catalog"
+            to={ROUTES.LEARNER.CATALOG}
             className={({ isActive }) =>
               `block rounded px-3 py-2 text-sm ${isActive ? 'bg-slate-800' : 'hover:bg-slate-800'}`
             }
@@ -24,7 +25,7 @@ export default function LearnerLayout() {
             Course Catalog
           </NavLink>
           <NavLink
-            to="/learner/my-learning"
+            to={ROUTES.LEARNER.MY_LEARNING}
             className={({ isActive }) =>
               `block rounded px-3 py-2 text-sm ${isActive ? 'bg-slate-800' : 'hover:bg-slate-800'}`
             }
@@ -32,7 +33,7 @@ export default function LearnerLayout() {
             My Learning
           </NavLink>
           <NavLink
-            to="/learner/profile"
+            to={ROUTES.LEARNER.PROFILE}
             className={({ isActive }) =>
               `block rounded px-3 py-2 text-sm ${isActive ? 'bg-slate-800' : 'hover:bg-slate-800'}`
             }

@@ -56,7 +56,7 @@ const CourseLessons = memo(function CourseLessons({
                   : 'border-slate-700/80 bg-slate-950/80 hover:border-slate-600'
               }`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
                   <span
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
@@ -80,7 +80,7 @@ const CourseLessons = memo(function CourseLessons({
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end sm:gap-3">
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                       status === 'completed'

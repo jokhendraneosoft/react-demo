@@ -5,6 +5,10 @@ export const API_ENDPOINTS = {
     SEED_DEMO_USERS: '/auth/seed-demo-users',
     REFRESH: '/auth/refresh',
   },
+  USERS: {
+    ME: '/users/me',
+    PREFERENCES: '/users/me/preferences',
+  },
   COURSES: {
     BASE: '/courses',
     DETAILS: (id: string) => `/courses/${id}`,
