@@ -67,9 +67,15 @@ const CourseLessons = memo(function CourseLessons({
                     <h4 className="font-semibold text-slate-100">
                       {lesson.title}
                     </h4>
-                    <p className="mt-1 text-sm text-slate-400 line-clamp-2">
-                      {lesson.content}
-                    </p>
+                    {lesson.summary && (
+                      <p className="mt-1 text-xs text-slate-400 line-clamp-2">{lesson.summary}</p>
+                    )}
+                    {lesson.content && (
+                      <div
+                        className="mt-1 text-sm text-slate-400 line-clamp-3 prose prose-invert prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: lesson.content }}
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">

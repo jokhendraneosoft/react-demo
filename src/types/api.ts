@@ -1,8 +1,27 @@
+export type LessonQuizType = 'single' | 'multiple'
+
+export interface LessonQuizOption {
+  id: string
+  text: string
+}
+
+export interface LessonQuizQuestion {
+  id: string
+  prompt: string
+  type: LessonQuizType
+  options: LessonQuizOption[]
+  correctOptionIds: string[]
+}
+
 export interface Lesson {
   _id: string
   title: string
   content: string
   order: number
+  summary?: string
+  videoUrl?: string
+  estimatedDurationMinutes?: number
+  quizQuestions?: LessonQuizQuestion[]
 }
 
 export interface Course {

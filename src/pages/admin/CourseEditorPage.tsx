@@ -5,7 +5,17 @@ import { useToast } from '@/context/ToastContext'
 
 interface LessonInput {
   title: string
+  summary: string
   content: string
+  videoUrl: string
+  estimatedDurationMinutes: number
+  quizQuestions: {
+    id: string
+    prompt: string
+    type: 'single' | 'multiple'
+    options: { id: string; text: string }[]
+    correctOptionIds: string[]
+  }[]
 }
 
 export default function CourseEditorPage() {
@@ -22,7 +32,16 @@ export default function CourseEditorPage() {
     imageUrl: '',
     difficulty: 'beginner',
     published: false,
-    lessons: [{ title: '', content: '' }] as LessonInput[]
+    lessons: [
+      {
+        title: '',
+        summary: '',
+        content: '',
+        videoUrl: '',
+        estimatedDurationMinutes: 0,
+        quizQuestions: [],
+      },
+    ] as LessonInput[],
   })
 
   const handleChange = (field: string, value: any) => {
@@ -42,12 +61,41 @@ export default function CourseEditorPage() {
           imageUrl: course.imageUrl ?? '',
           difficulty: course.difficulty,
           published: course.published,
-          lessons: course.lessons.length > 0
-            ? course.lessons.map((l: { title?: string; content?: string }) => ({
-                title: l.title ?? '',
-                content: l.content ?? '',
-              }))
-            : [{ title: '', content: '' }],
+          lessons:
+            course.lessons.length > 0
+              ? course.lessons.map(
+                  (l: {
+                    title?: string
+                    content?: string
+                    summary?: string
+                    videoUrl?: string
+                    estimatedDurationMinutes?: number
+                    quizQuestions?: {
+                      id: string
+                      prompt: string
+                      type: 'single' | 'multiple'
+                      options: { id: string; text: string }[]
+                      correctOptionIds: string[]
+                    }[]
+                  }) => ({
+                    title: l.title ?? '',
+                    summary: l.summary ?? '',
+                    content: l.content ?? '',
+                    videoUrl: l.videoUrl ?? '',
+                    estimatedDurationMinutes: l.estimatedDurationMinutes ?? 0,
+                    quizQuestions: l.quizQuestions ?? [],
+                  }),
+                )
+              : [
+                  {
+                    title: '',
+                    summary: '',
+                    content: '',
+                    videoUrl: '',
+                    estimatedDurationMinutes: 0,
+                    quizQuestions: [],
+                  },
+                ],
         })
       })
       .catch((err) => console.error(err))
@@ -64,7 +112,15 @@ export default function CourseEditorPage() {
       published: formData.published,
       lessons: formData.lessons.map((lesson, index) => ({
         title: lesson.title,
+        summary: lesson.summary || undefined,
         content: lesson.content,
+        videoUrl: lesson.videoUrl.trim() || undefined,
+        estimatedDurationMinutes:
+          typeof lesson.estimatedDurationMinutes === 'number' &&
+          lesson.estimatedDurationMinutes > 0
+            ? lesson.estimatedDurationMinutes
+            : undefined,
+        quizQuestions: lesson.quizQuestions?.length ? lesson.quizQuestions : undefined,
         order: index + 1,
       })),
     }
@@ -94,9 +150,20 @@ export default function CourseEditorPage() {
   const addLesson = () => {
     setFormData((prev) => ({
       ...prev,
-      lessons: [...prev.lessons, { title: '', content: '' }]
+      lessons: [
+        ...prev.lessons,
+        {
+          title: '',
+          summary: '',
+          content: '',
+          videoUrl: '',
+          estimatedDurationMinutes: 0,
+        },
+      ],
     }))
   }
+
+  // simple markdown-like helper: users can use **bold**, _italic_, lists, etc.
 
   const inputBase =
     'w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20'
@@ -263,12 +330,315 @@ export default function CourseEditorPage() {
                     onChange={(e) => updateLesson(index, 'title', e.target.value)}
                   />
                   <textarea
-                    rows={3}
-                    placeholder="Lesson content or key points..."
+                    rows={2}
+                    placeholder="Short summary of this lesson..."
                     className={`${inputBase} resize-y`}
-                    value={lesson.content}
-                    onChange={(e) => updateLesson(index, 'content', e.target.value)}
+                    value={lesson.summary}
+                    onChange={(e) => updateLesson(index, 'summary', e.target.value)}
                   />
+                  <div>
+                    <label className={labelBase}>Lesson content</label>
+                    <textarea
+                      rows={4}
+                      placeholder="Lesson content or key points (you can use simple markdown like **bold**, lists, etc.)"
+                      className={`${inputBase} resize-y`}
+                      value={lesson.content}
+                      onChange={(e) => updateLesson(index, 'content', e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-[2fr,1fr]">
+                    <div>
+                      <label className={labelBase}>Video URL (optional)</label>
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        className={inputBase}
+                        value={lesson.videoUrl}
+                        onChange={(e) => updateLesson(index, 'videoUrl', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelBase}>Estimated minutes</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        className={inputBase}
+                        value={lesson.estimatedDurationMinutes}
+                        onChange={(e) =>
+                          updateLesson(index, 'estimatedDurationMinutes', Number(e.target.value) || 0)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950/70 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Quiz (optional)
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          Add quick checks for understanding at the end of this lesson.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded bg-slate-800 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-700"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            lessons: prev.lessons.map((l, i) =>
+                              i === index
+                                ? {
+                                    ...l,
+                                    quizQuestions: [
+                                      ...(l.quizQuestions ?? []),
+                                      {
+                                        id: `q-${Date.now()}`,
+                                        prompt: '',
+                                        type: 'single',
+                                        options: [
+                                          { id: 'a', text: '' },
+                                          { id: 'b', text: '' },
+                                        ],
+                                        correctOptionIds: [],
+                                      },
+                                    ],
+                                  }
+                                : l,
+                            ),
+                          }))
+                        }}
+                      >
+                        + Add question
+                      </button>
+                    </div>
+
+                    {(lesson.quizQuestions ?? []).length === 0 && (
+                      <p className="text-[11px] text-slate-500">
+                        No questions yet. Learners can still complete the lesson without a quiz.
+                      </p>
+                    )}
+
+                    <div className="mt-3 space-y-3">
+                      {(lesson.quizQuestions ?? []).map((q, qIndex) => (
+                        <div
+                          key={q.id || qIndex}
+                          className="rounded-md border border-slate-700 bg-slate-950/80 p-3 text-xs"
+                        >
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-300">
+                              Question {qIndex + 1}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <select
+                                className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] text-slate-100"
+                                value={q.type}
+                                onChange={(e) => {
+                                  const type = e.target.value as 'single' | 'multiple'
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    lessons: prev.lessons.map((l, i) =>
+                                      i === index
+                                        ? {
+                                            ...l,
+                                            quizQuestions: l.quizQuestions.map((qq, j) =>
+                                              j === qIndex ? { ...qq, type } : qq,
+                                            ),
+                                          }
+                                        : l,
+                                    ),
+                                  }))
+                                }}
+                              >
+                                <option value="single">Single choice</option>
+                                <option value="multiple">Multiple choice</option>
+                              </select>
+                              <button
+                                type="button"
+                                className="text-[11px] text-rose-300 hover:text-rose-200"
+                                onClick={() => {
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    lessons: prev.lessons.map((l, i) =>
+                                      i === index
+                                        ? {
+                                            ...l,
+                                            quizQuestions: l.quizQuestions.filter(
+                                              (_qq, j) => j !== qIndex,
+                                            ),
+                                          }
+                                        : l,
+                                    ),
+                                  }))
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            className={inputBase}
+                            placeholder="Question prompt"
+                            value={q.prompt}
+                            onChange={(e) => {
+                              const prompt = e.target.value
+                              setFormData((prev) => ({
+                                ...prev,
+                                lessons: prev.lessons.map((l, i) =>
+                                  i === index
+                                    ? {
+                                        ...l,
+                                        quizQuestions: l.quizQuestions.map((qq, j) =>
+                                          j === qIndex ? { ...qq, prompt } : qq,
+                                        ),
+                                      }
+                                    : l,
+                                ),
+                              }))
+                            }}
+                          />
+                          <div className="mt-2 space-y-2">
+                            {q.options.map((opt, optIndex) => {
+                              const isCorrect = q.correctOptionIds.includes(opt.id)
+                              const toggleCorrect = () => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  lessons: prev.lessons.map((l, i) =>
+                                    i === index
+                                      ? {
+                                          ...l,
+                                          quizQuestions: l.quizQuestions.map((qq, j) => {
+                                            if (j !== qIndex) return qq
+                                            if (qq.type === 'single') {
+                                              return { ...qq, correctOptionIds: [opt.id] }
+                                            }
+                                            const set = new Set(qq.correctOptionIds)
+                                            if (set.has(opt.id)) set.delete(opt.id)
+                                            else set.add(opt.id)
+                                            return { ...qq, correctOptionIds: Array.from(set) }
+                                          }),
+                                        }
+                                      : l,
+                                  ),
+                                }))
+                              }
+
+                              return (
+                                <div key={opt.id || optIndex} className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={toggleCorrect}
+                                    className={`flex h-4 w-4 items-center justify-center rounded border text-[10px] ${
+                                      isCorrect
+                                        ? 'border-emerald-500 bg-emerald-600 text-slate-950'
+                                        : 'border-slate-600 bg-slate-950 text-slate-500'
+                                    }`}
+                                  >
+                                    {isCorrect ? '✓' : ''}
+                                  </button>
+                                  <input
+                                    className={`${inputBase} text-[11px]`}
+                                    placeholder={`Option ${optIndex + 1}`}
+                                    value={opt.text}
+                                    onChange={(e) => {
+                                      const text = e.target.value
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        lessons: prev.lessons.map((l, i) =>
+                                          i === index
+                                            ? {
+                                                ...l,
+                                                quizQuestions: l.quizQuestions.map((qq, j) =>
+                                                  j === qIndex
+                                                    ? {
+                                                        ...qq,
+                                                        options: qq.options.map((oo, k) =>
+                                                          k === optIndex ? { ...oo, text } : oo,
+                                                        ),
+                                                      }
+                                                    : qq,
+                                                ),
+                                              }
+                                            : l,
+                                        ),
+                                      }))
+                                    }}
+                                  />
+                                  {q.options.length > 2 && (
+                                    <button
+                                      type="button"
+                                      className="text-[11px] text-slate-400 hover:text-slate-200"
+                                      onClick={() => {
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          lessons: prev.lessons.map((l, i) =>
+                                            i === index
+                                              ? {
+                                                  ...l,
+                                                  quizQuestions: l.quizQuestions.map((qq, j) =>
+                                                    j === qIndex
+                                                      ? {
+                                                          ...qq,
+                                                          options: qq.options.filter(
+                                                            (_oo, k) => k !== optIndex,
+                                                          ),
+                                                          correctOptionIds: qq.correctOptionIds.filter(
+                                                            (id) => id !== opt.id,
+                                                          ),
+                                                        }
+                                                      : qq,
+                                                  ),
+                                                }
+                                              : l,
+                                          ),
+                                        }))
+                                      }}
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            })}
+                            <button
+                              type="button"
+                              className="mt-1 text-[11px] text-sky-300 hover:text-sky-200"
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  lessons: prev.lessons.map((l, i) =>
+                                    i === index
+                                      ? {
+                                          ...l,
+                                          quizQuestions: l.quizQuestions.map((qq, j) =>
+                                            j === qIndex
+                                              ? {
+                                                  ...qq,
+                                                  options: [
+                                                    ...qq.options,
+                                                    {
+                                                      id: String.fromCharCode(97 + qq.options.length),
+                                                      text: '',
+                                                    },
+                                                  ],
+                                                }
+                                              : qq,
+                                          ),
+                                        }
+                                      : l,
+                                  ),
+                                }))
+                              }}
+                            >
+                              + Add option
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

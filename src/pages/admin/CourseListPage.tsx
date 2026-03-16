@@ -7,6 +7,7 @@ import { useToast } from '@/context/ToastContext'
 export default function CourseListPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [showArchived, setShowArchived] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const { addToast } = useToast()
 
   useEffect(() => {
@@ -23,21 +24,26 @@ export default function CourseListPage() {
     [courses, showArchived],
   )
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      const confirm = window.confirm('Are you sure you want to permanently delete this course?')
-      if (!confirm) return
-      try {
-        await courseService.deleteCourse(id)
-        setCourses((prev) => prev.filter((c) => c._id !== id))
-        addToast('Course deleted', 'success')
-      } catch (err) {
-        console.error(err)
-        addToast('Failed to delete course', 'error')
-      }
-    },
-    [addToast],
-  )
+  const handleRequestDelete = useCallback((id: string) => {
+    setPendingDeleteId(id)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDeleteId) return
+    try {
+      await courseService.deleteCourse(pendingDeleteId)
+      setCourses((prev) => prev.filter((c) => c._id !== pendingDeleteId))
+      setPendingDeleteId(null)
+      addToast('Course deleted', 'success')
+    } catch (err) {
+      console.error(err)
+      addToast('Failed to delete course', 'error')
+    }
+  }, [pendingDeleteId, addToast])
+
+  const handleCancelDelete = useCallback(() => {
+    setPendingDeleteId(null)
+  }, [])
 
   const handleToggleArchive = useCallback(
     async (id: string) => {
@@ -128,7 +134,7 @@ export default function CourseListPage() {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => handleDelete(course._id)}
+                      onClick={() => handleRequestDelete(course._id)}
                       className="rounded border border-rose-700 px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-900"
                     >
                       Delete
@@ -147,6 +153,33 @@ export default function CourseListPage() {
           </tbody>
         </table>
       </div>
+
+      {pendingDeleteId && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-sm rounded-xl border border-rose-900 bg-slate-950 px-6 py-5 shadow-xl shadow-black/60">
+            <h3 className="mb-2 text-sm font-semibold text-slate-50">Delete course?</h3>
+            <p className="mb-4 text-xs text-slate-400">
+              This action cannot be undone. The course and its data will be permanently removed.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelDelete}
+                className="rounded border border-slate-700 px-3 py-1.5 text-[11px] text-slate-100 hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="rounded bg-rose-700 px-3 py-1.5 text-[11px] font-medium text-rose-50 hover:bg-rose-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

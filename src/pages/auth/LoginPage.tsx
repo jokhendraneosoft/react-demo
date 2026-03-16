@@ -73,9 +73,6 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
-        <p className="mt-2 text-center text-xs text-slate-500">
-          Demo users are created via the backend <code>/api/auth/seed-demo-users</code> endpoint.
-        </p>
       </div>
     </div>
   )
