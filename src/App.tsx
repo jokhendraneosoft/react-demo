@@ -27,12 +27,30 @@ function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'le
   return children
 }
 
+function RequireGuest({ children }: { children: React.ReactNode }) {
+  const { user } = useSelector((state: RootState) => state.auth)
+
+  if (user) {
+    const target = user.role === 'admin' ? '/admin/courses' : '/learner/catalog'
+    return <Navigate to={target} replace />
+  }
+
+  return children
+}
+
 function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={
+            <RequireGuest>
+              <LoginPage />
+            </RequireGuest>
+          }
+        />
 
         <Route
           path="/learner"
