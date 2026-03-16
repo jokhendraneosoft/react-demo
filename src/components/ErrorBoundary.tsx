@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 
 interface Props {
   children: ReactNode
@@ -31,12 +30,15 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="max-w-md text-center text-sm text-slate-400">
             {this.state.error.message}
           </p>
-          <Link
-            to="/login"
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/login'
+            }}
             className="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
           >
             Back to sign in
-          </Link>
+          </button>
         </div>
       )
     }

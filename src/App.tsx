@@ -8,6 +8,7 @@ import LearnerLayout from '@/routes/LearnerLayout'
 import AdminLayout from '@/routes/AdminLayout'
 import CourseCatalogPage from '@/pages/learner/CourseCatalogPage'
 import CourseDetailPage from '@/pages/learner/CourseDetailPage'
+import LessonViewPage from '@/pages/learner/LessonViewPage'
 import MyLearningPage from '@/pages/learner/MyLearningPage'
 import ProfilePage from '@/pages/learner/ProfilePage'
 import AdminCourseListPage from '@/pages/admin/CourseListPage'
@@ -72,6 +73,7 @@ function App() {
           <Route index element={<Navigate to="catalog" replace />} />
           <Route path="catalog" element={<CourseCatalogPage />} />
           <Route path="courses/:id" element={<CourseDetailPage />} />
+          <Route path="courses/:courseId/lessons/:lessonId" element={<LessonViewPage />} />
           <Route path="my-learning" element={<MyLearningPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>

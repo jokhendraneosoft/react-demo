@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, memo, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { courseService, progressService } from '@/services/api/course.service'
 import { useToast } from '@/context/ToastContext'
 import type { Course, CourseProgress } from '@/types/api'
@@ -31,10 +31,12 @@ const CourseLessons = memo(function CourseLessons({
   lessons,
   lessonStatus,
   onToggleLesson,
+  courseId,
 }: {
   lessons: Course['lessons']
   lessonStatus: Map<string, 'not_started' | 'in_progress' | 'completed'>
   onToggleLesson: (lessonId: string) => void
+  courseId: string
 }) {
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm">
@@ -90,15 +92,30 @@ const CourseLessons = memo(function CourseLessons({
                   >
                     {status === 'completed' ? 'Done' : status === 'in_progress' ? 'In progress' : 'Not started'}
                   </span>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-2 focus:ring-sky-500 focus:ring-offset-0 focus:ring-offset-slate-950"
-                      checked={isCompleted}
-                      onChange={() => onToggleLesson(String(lesson._id))}
-                    />
-                    Mark done
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-2 focus:ring-sky-500 focus:ring-offset-0 focus:ring-offset-slate-950"
+                        checked={isCompleted}
+                        onChange={() => onToggleLesson(String(lesson._id))}
+                      />
+                      Mark done
+                    </label>
+                    <Link
+                      to={`/learner/courses/${courseId}/lessons/${lesson._id}`}
+                      className="rounded-lg border border-sky-600 px-3 py-2 text-xs font-medium text-sky-300 hover:bg-sky-600/20"
+                    >
+                      Open lesson
+                    </Link>
+                    {(lesson.videoUrl || (lesson.quizQuestions ?? []).length > 0) && (
+                      <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] text-slate-300">
+                        {lesson.videoUrl && 'Video'}
+                        {lesson.videoUrl && (lesson.quizQuestions ?? []).length > 0 && ' · '}
+                        {(lesson.quizQuestions ?? []).length > 0 && 'Quiz'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </li>
@@ -342,7 +359,8 @@ export default function CourseDetailPage() {
           <CourseLessons 
             lessons={course.lessons} 
             lessonStatus={lessonStatus} 
-            onToggleLesson={handleToggleLesson} 
+            onToggleLesson={handleToggleLesson}
+            courseId={course._id}
           />
         </>
       )}

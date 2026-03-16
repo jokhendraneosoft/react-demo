@@ -11,16 +11,16 @@ import App from './App.tsx'
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
-    <ErrorBoundary>
-      <Provider store={store}>
-        <BrowserRouter>
+    <Provider store={store}>
+      <BrowserRouter>
+        <ErrorBoundary>
           <ThemeProvider>
             <ToastProvider>
               <App />
             </ToastProvider>
           </ThemeProvider>
-        </BrowserRouter>
-      </Provider>
-    </ErrorBoundary>
+        </ErrorBoundary>
+      </BrowserRouter>
+    </Provider>
   </StrictMode>,
 )
