@@ -32,16 +32,20 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response Interceptor: Global error handling with refresh token support
+// Response Interceptor: Unwrap success envelope and handle errors
 apiClient.interceptors.response.use(
   (response) => {
-    // Return data natively where expected
+    // Backend returns { success: true, statusCode, data, message?, meta? }; unwrap so callers get data
+    const body = response.data;
+    if (body && typeof body === 'object' && body.success === true && 'data' in body) {
+      response.data = body.data;
+    }
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
 
-    // Standardize error message formats from the backend format `{ error: { message: ... } }`
+    // Backend error format: { success: false, statusCode, error: { code, message, details? } }
     const customMessage = error.response?.data?.error?.message;
     if (customMessage) {
       error.message = customMessage;
@@ -50,7 +54,7 @@ apiClient.interceptors.response.use(
     // Attempt refresh token flow only for 401 + expired token, and only once per request
     if (
       error.response?.status === 401 &&
-      customMessage === 'Token expired' &&
+      (customMessage === 'Token expired' || error.response?.data?.error?.code === 'UNAUTHORIZED') &&
       store &&
       originalRequest &&
       !(originalRequest as any)._retry
