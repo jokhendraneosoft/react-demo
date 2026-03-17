@@ -24,6 +24,13 @@ export interface Lesson {
   quizQuestions?: LessonQuizQuestion[]
 }
 
+export interface Module {
+  _id: string
+  title: string
+  order: number
+  lessons: Lesson[]
+}
+
 export interface Course {
   _id: string
   title: string
@@ -33,9 +40,34 @@ export interface Course {
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   tags?: string[]
   estimatedDurationMinutes?: number
-  lessons: Lesson[]
+  modules: Module[]
   published: boolean
   archived?: boolean
+}
+
+/**
+ * Returns all lessons from all modules in order (module.order → lesson.order).
+ * Use this wherever you previously iterated course.lessons.
+ */
+export function getAllLessons(course: Course): Lesson[] {
+  const mods = [...(course.modules ?? [])].sort((a, b) => a.order - b.order)
+  const lessons: Lesson[] = []
+  for (const mod of mods) {
+    const sorted = [...(mod.lessons ?? [])].sort((a, b) => a.order - b.order)
+    for (const l of sorted) lessons.push(l)
+  }
+  return lessons
+}
+
+/**
+ * Finds a lesson by its _id across all modules of a course.
+ */
+export function getLessonById(course: Course, lessonId: string): Lesson | undefined {
+  for (const mod of course.modules ?? []) {
+    const found = mod.lessons.find((l) => l._id === lessonId)
+    if (found) return found
+  }
+  return undefined
 }
 
 export interface EnrollmentSummary {

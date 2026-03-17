@@ -4,6 +4,7 @@ import { courseService, progressService } from '@/services/api/course.service'
 import { feedbackService } from '@/services/api/feedback.service'
 import { useToast } from '@/context/ToastContext'
 import type { Course, CourseProgress, CourseFeedback, CourseRatingSummary } from '@/types/api'
+import { getAllLessons } from '@/types/api'
 import { Skeleton, TextSkeleton } from '@/components/ui/Skeleton'
 import { ErrorPanel } from '@/components/ui/ErrorPanel'
 
@@ -31,103 +32,119 @@ function normalizeProgress(raw: unknown): CourseProgress | null {
 }
 
 const CourseLessons = memo(function CourseLessons({
-  lessons,
+  course,
   lessonStatus,
   onToggleLesson,
-  courseId,
 }: {
-  lessons: Course['lessons']
+  course: Course
   lessonStatus: Map<string, 'not_started' | 'in_progress' | 'completed'>
   onToggleLesson: (lessonId: string) => void
-  courseId: string
 }) {
+  const modules = [...(course.modules ?? [])].sort((a, b) => a.order - b.order)
+  const allLessons = getAllLessons(course)
+
+  if (allLessons.length === 0) {
+    return (
+      <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm">
+        <p className="py-8 text-center text-sm text-slate-500">No lessons yet.</p>
+      </section>
+    )
+  }
+
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">
-        Lessons
+      <h3 className="mb-5 text-sm font-semibold uppercase tracking-wide text-slate-400">
+        Modules &amp; Lessons
       </h3>
-      <ul className="space-y-4">
-        {lessons.map((lesson) => {
-          const status = lessonStatus.get(String(lesson._id))
-          const isCompleted = status === 'completed'
+      <div className="space-y-6">
+        {modules.map((mod) => {
+          const lessons = [...mod.lessons].sort((a, b) => a.order - b.order)
           return (
-            <li
-              key={lesson._id}
-              className={`rounded-lg border p-4 transition-colors ${
-                isCompleted
-                  ? 'border-emerald-800/50 bg-emerald-950/20'
-                  : 'border-slate-700/80 bg-slate-950/80 hover:border-slate-600'
-              }`}
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
-                      isCompleted ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-800 text-slate-300'
-                    }`}
-                  >
-                    {isCompleted ? '✓' : lesson.order}
-                  </span>
-                  <div className="min-w-0">
-                    <h4 className="font-semibold text-slate-100">
-                      {lesson.title}
-                    </h4>
-                    {lesson.summary && (
-                      <p className="mt-1 text-xs text-slate-400 line-clamp-2">{lesson.summary}</p>
-                    )}
-                    {lesson.content && (
-                      <div
-                        className="mt-1 text-sm text-slate-400 line-clamp-3 prose prose-invert prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: lesson.content }}
-                      />
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end sm:gap-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      status === 'completed'
-                        ? 'bg-emerald-900/60 text-emerald-300'
-                        : status === 'in_progress'
-                          ? 'bg-sky-900/60 text-sky-300'
-                          : 'bg-slate-800 text-slate-300'
-                    }`}
-                  >
-                    {status === 'completed' ? 'Done' : status === 'in_progress' ? 'In progress' : 'Not started'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-2 focus:ring-sky-500 focus:ring-offset-0 focus:ring-offset-slate-950"
-                        checked={isCompleted}
-                        onChange={() => onToggleLesson(String(lesson._id))}
-                      />
-                      Mark done
-                    </label>
-                    <Link
-                      to={`/learner/courses/${courseId}/lessons/${lesson._id}`}
-                      className="rounded-lg border border-sky-600 px-3 py-2 text-xs font-medium text-sky-300 hover:bg-sky-600/20"
-                    >
-                      Open lesson
-                    </Link>
-                    {(lesson.videoUrl || (lesson.quizQuestions ?? []).length > 0) && (
-                      <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] text-slate-300">
-                        {lesson.videoUrl && 'Video'}
-                        {lesson.videoUrl && (lesson.quizQuestions ?? []).length > 0 && ' · '}
-                        {(lesson.quizQuestions ?? []).length > 0 && 'Quiz'}
-                      </span>
-                    )}
-                  </div>
-                </div>
+            <div key={mod._id}>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded bg-sky-900/50 text-[10px] font-bold text-sky-400">
+                  M
+                </span>
+                <h4 className="text-sm font-semibold text-slate-200">{mod.title}</h4>
+                <span className="ml-auto text-[11px] text-slate-500">
+                  {lessons.length} lesson{lessons.length !== 1 ? 's' : ''}
+                </span>
               </div>
-            </li>
+              <ul className="space-y-3 pl-2">
+                {lessons.map((lesson) => {
+                  const status = lessonStatus.get(String(lesson._id))
+                  const isCompleted = status === 'completed'
+                  return (
+                    <li
+                      key={lesson._id}
+                      className={`rounded-lg border p-4 transition-colors ${
+                        isCompleted
+                          ? 'border-emerald-800/50 bg-emerald-950/20'
+                          : 'border-slate-700/80 bg-slate-950/80 hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <span
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+                              isCompleted ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {isCompleted ? '✓' : lesson.order}
+                          </span>
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-slate-100">{lesson.title}</h4>
+                            {lesson.summary && (
+                              <p className="mt-1 text-xs text-slate-400 line-clamp-2">{lesson.summary}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end sm:gap-3">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                              status === 'completed'
+                                ? 'bg-emerald-900/60 text-emerald-300'
+                                : status === 'in_progress'
+                                  ? 'bg-sky-900/60 text-sky-300'
+                                  : 'bg-slate-800 text-slate-300'
+                            }`}
+                          >
+                            {status === 'completed' ? 'Done' : status === 'in_progress' ? 'In progress' : 'Not started'}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-2 focus:ring-sky-500 focus:ring-offset-0"
+                                checked={isCompleted}
+                                onChange={() => onToggleLesson(String(lesson._id))}
+                              />
+                              Mark done
+                            </label>
+                            <Link
+                              to={`/learner/courses/${course._id}/lessons/${lesson._id}`}
+                              className="rounded-lg border border-sky-600 px-3 py-2 text-xs font-medium text-sky-300 hover:bg-sky-600/20"
+                            >
+                              Open lesson
+                            </Link>
+                            {(lesson.videoUrl || (lesson.quizQuestions ?? []).length > 0) && (
+                              <span className="rounded-full bg-slate-800 px-2 py-1 text-[10px] text-slate-300">
+                                {lesson.videoUrl && 'Video'}
+                                {lesson.videoUrl && (lesson.quizQuestions ?? []).length > 0 && ' · '}
+                                {(lesson.quizQuestions ?? []).length > 0 && 'Quiz'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           )
         })}
-      </ul>
-      {lessons.length === 0 && (
-        <p className="py-8 text-center text-sm text-slate-500">No lessons yet.</p>
-      )}
+      </div>
     </section>
   )
 })
@@ -290,7 +307,7 @@ export default function CourseDetailPage() {
     const completedSet = new Set(progress.completedLessonIds.map(String))
     const lastId = progress.lastLessonId ? String(progress.lastLessonId) : null
 
-    course?.lessons.forEach((lesson) => {
+    getAllLessons(course!).forEach((lesson) => {
       const key = String(lesson._id)
       if (completedSet.has(key)) {
         map.set(key, 'completed')
@@ -363,7 +380,7 @@ export default function CourseDetailPage() {
   const totalMinutes =
     typeof course.estimatedDurationMinutes === 'number' && course.estimatedDurationMinutes > 0
       ? course.estimatedDurationMinutes
-      : (course.lessons ?? []).reduce(
+      : getAllLessons(course).reduce(
           (sum, l) =>
             sum +
             (l.estimatedDurationMinutes && l.estimatedDurationMinutes > 0
@@ -479,9 +496,9 @@ export default function CourseDetailPage() {
               <p className="mt-1 text-sm text-slate-400">
                 Enroll to unlock all lessons and track your progress. This course will appear in My Learning.
               </p>
-              {course.lessons.length > 0 && (
+              {getAllLessons(course).length > 0 && (
                 <p className="mt-2 text-xs text-slate-500">
-                  {course.lessons.length} lesson{course.lessons.length !== 1 ? 's' : ''} · Mark lessons as done as you go
+                  {getAllLessons(course).length} lesson{getAllLessons(course).length !== 1 ? 's' : ''} · Mark lessons as done as you go
                 </p>
               )}
             </div>
@@ -523,11 +540,10 @@ export default function CourseDetailPage() {
             </div>
           </section>
 
-          <CourseLessons 
-            lessons={course.lessons} 
-            lessonStatus={lessonStatus} 
+          <CourseLessons
+            course={course}
+            lessonStatus={lessonStatus}
             onToggleLesson={handleToggleLesson}
-            courseId={course._id}
           />
         </>
       )}

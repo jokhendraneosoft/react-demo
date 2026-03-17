@@ -10,6 +10,7 @@ import { CornerDownRight, Send, MessageSquare } from 'lucide-react'
 import { courseService } from '@/services/api/course.service'
 import { lessonCommentService } from '@/services/api/lessonComment.service'
 import type { Course, LessonComment, LessonCommentReply } from '@/types/api'
+import { getAllLessons } from '@/types/api'
 import { useToast } from '@/context/ToastContext'
 import { ROUTES } from '@/routes/paths'
 
@@ -216,8 +217,9 @@ export default function CourseDiscussionPage() {
       .fetchCourse(courseId)
       .then((data) => {
         setCourse(data)
-        if (data.lessons?.length) {
-          setSelectedLessonId(String(data.lessons[0]._id))
+        const allL = getAllLessons(data)
+        if (allL.length) {
+          setSelectedLessonId(String(allL[0]._id))
         } else {
           setSelectedLessonId(null)
         }
@@ -300,7 +302,7 @@ export default function CourseDiscussionPage() {
     )
   }
 
-  const lessons = course.lessons ?? []
+  const lessons = getAllLessons(course)
   const selectedLesson = lessons.find((l) => String(l._id) === selectedLessonId)
 
   return (

@@ -16,6 +16,7 @@ import {
 import { courseService } from '@/services/api/course.service'
 import { ROUTES } from '@/routes/paths'
 import type { Course } from '@/types/api'
+import { getAllLessons } from '@/types/api'
 import { useToast } from '@/context/ToastContext'
 
 function formatDuration(minutes: number) {
@@ -270,7 +271,7 @@ export default function CourseListPage() {
                 </div>
                 <div className="mt-auto flex items-center gap-2 text-[11px] text-slate-500">
                   <Layers size={12} />
-                  <span>{course.lessons?.length ?? 0} lessons</span>
+                  <span>{getAllLessons(course).length} lessons</span>
                 </div>
 
                 {/* Actions */}

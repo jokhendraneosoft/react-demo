@@ -7,6 +7,7 @@ import {
   BookOpen,
   Clock,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDot,
@@ -27,6 +28,7 @@ import {
 import { courseService, progressService, quizService } from '@/services/api/course.service'
 import { lessonCommentService } from '@/services/api/lessonComment.service'
 import type { Course, Lesson, CourseProgress, LessonComment, LessonCommentReply } from '@/types/api'
+import { getAllLessons } from '@/types/api'
 import { useToast } from '@/context/ToastContext'
 import { Skeleton, TextSkeleton } from '@/components/ui/Skeleton'
 import { ErrorPanel } from '@/components/ui/ErrorPanel'
@@ -289,6 +291,35 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({})
   const [submittingReply, setSubmittingReply] = useState<Record<string, boolean>>({})
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
+  /** Module ids that are collapsed in the right-hand lesson list */
+  const [collapsedModuleIds, setCollapsedModuleIds] = useState<Set<string>>(new Set())
+
+  const toggleModuleCollapsed = (moduleId: string) => {
+    setCollapsedModuleIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(moduleId)) next.delete(moduleId)
+      else next.add(moduleId)
+      return next
+    })
+  }
+
+  // Keep the current lesson's module expanded when course/lesson changes
+  useEffect(() => {
+    if (!course || !lesson) return
+    const currentLessonId = String(lesson._id)
+    for (const mod of course.modules ?? []) {
+      const hasCurrent = mod.lessons.some((l) => String(l._id) === currentLessonId)
+      if (hasCurrent) {
+        setCollapsedModuleIds((prev) => {
+          if (prev.has(String(mod._id))) return prev
+          const next = new Set(prev)
+          next.delete(String(mod._id))
+          return next
+        })
+        break
+      }
+    }
+  }, [course, lesson])
 
   useEffect(() => {
     if (!courseId || !lessonId) return
@@ -301,7 +332,7 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
         const cid = String(courseId)
         const data = await courseService.fetchCourse(cid, { signal: controller.signal })
         setCourse(data)
-        const l = data.lessons.find((x) => String(x._id) === String(lessonId)) ?? null
+        const l = getAllLessons(data).find((x) => String(x._id) === String(lessonId)) ?? null
         setLesson(l)
 
         const progressData = await progressService
@@ -655,7 +686,7 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
     if (!progress) return map
     const completedSet = new Set(progress.completedLessonIds.map(String))
     const lastId = progress.lastLessonId ? String(progress.lastLessonId) : null
-    course.lessons.forEach((l) => {
+    getAllLessons(course).forEach((l) => {
       const key = String(l._id)
       if (completedSet.has(key)) map.set(key, 'completed')
       else if (lastId && key === lastId) map.set(key, 'in_progress')
@@ -664,15 +695,16 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
     return map
   })()
 
+  const allLessons = getAllLessons(course)
   const completedCount = [...lessonStatusMap.values()].filter((s) => s === 'completed').length
-  const totalLessons = course.lessons.length
+  const totalLessons = allLessons.length
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
-  const currentLessonIndex = course.lessons.findIndex((l) => String(l._id) === String(lesson._id))
-  const prevLessonId = currentLessonIndex > 0 ? String(course.lessons[currentLessonIndex - 1]._id) : null
+  const currentLessonIndex = allLessons.findIndex((l) => String(l._id) === String(lesson._id))
+  const prevLessonId = currentLessonIndex > 0 ? String(allLessons[currentLessonIndex - 1]._id) : null
   const nextLessonId =
-    currentLessonIndex >= 0 && currentLessonIndex < course.lessons.length - 1
-      ? String(course.lessons[currentLessonIndex + 1]._id)
+    currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1
+      ? String(allLessons[currentLessonIndex + 1]._id)
       : null
 
   const quizQuestions = lesson.quizQuestions ?? []
@@ -691,8 +723,8 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
       {/* ═══ Main content column ═══════════════════════════════ */}
       <div className="flex min-w-0 flex-1 flex-col">
 
-        {/* Sticky lesson header */}
-        <div className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm">
+        {/* Lesson header — scrolls with content */}
+        <div className="border-b border-slate-800 bg-slate-950/95">
           <div className="flex items-start justify-between gap-4 px-6 py-4">
             <div className="min-w-0 flex-1">
               <Link
@@ -1416,60 +1448,82 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
             </div>
           </div>
 
-          {/* Lesson list — scrollable */}
-          <ol className="flex-1 overflow-y-auto p-3 space-y-1">
-            {course.lessons.map((l, index) => {
-              const idStr = String(l._id)
-              const status = lessonStatusMap.get(idStr) ?? 'not_started'
-              const isCurrent = String(lesson._id) === idStr
+          {/* Lesson list — grouped by module, scrollable, each module collapsible */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+            {[...(course.modules ?? [])].sort((a, b) => a.order - b.order).map((mod) => {
+              const modId = String(mod._id)
+              const isCollapsed = collapsedModuleIds.has(modId)
+              const modLessons = [...mod.lessons].sort((a, b) => a.order - b.order)
               return (
-                <li key={idStr}>
+                <div key={mod._id}>
                   <button
                     type="button"
-                    onClick={() => navigate(`/learner/courses/${course._id}/lessons/${idStr}`)}
-                    className={`group flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                      isCurrent
-                        ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30'
-                        : 'hover:bg-slate-800/70'
-                    }`}
+                    onClick={() => toggleModuleCollapsed(modId)}
+                    className="mb-1 flex w-full items-center gap-1.5 px-1 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors"
                   >
-                    {/* Number badge */}
-                    <span
-                      className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-semibold ${
-                        isCurrent
-                          ? 'bg-indigo-600 text-white'
-                          : status === 'completed'
-                            ? 'bg-emerald-600/20 text-emerald-400'
-                            : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {status === 'completed' && !isCurrent ? '✓' : index + 1}
-                    </span>
-
-                    {/* Title */}
-                    <span
-                      className={`flex-1 line-clamp-2 text-xs leading-snug ${
-                        isCurrent ? 'text-indigo-200 font-medium' : 'text-slate-300 group-hover:text-slate-100'
-                      }`}
-                    >
-                      {l.title}
-                    </span>
-
-                    {/* Status icon */}
-                    <span className="mt-0.5 shrink-0">
-                      {status === 'completed' ? (
-                        <CheckCircle2 size={13} className="text-emerald-400" />
-                      ) : status === 'in_progress' ? (
-                        <CircleDot size={13} className="text-sky-400" />
-                      ) : (
-                        <Circle size={13} className="text-slate-700" />
-                      )}
-                    </span>
+                    {isCollapsed ? (
+                      <ChevronRight size={12} className="shrink-0" />
+                    ) : (
+                      <ChevronDown size={12} className="shrink-0" />
+                    )}
+                    <span className="truncate">{mod.title}</span>
+                    <span className="ml-auto shrink-0 text-slate-600">({modLessons.length})</span>
                   </button>
-                </li>
+                  {!isCollapsed && (
+                  <ol className="space-y-0.5">
+                    {modLessons.map((l) => {
+                      const idStr = String(l._id)
+                      const status = lessonStatusMap.get(idStr) ?? 'not_started'
+                      const isCurrent = String(lesson._id) === idStr
+                      const globalIndex = allLessons.findIndex((gl) => String(gl._id) === idStr)
+                      return (
+                        <li key={idStr}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/learner/courses/${course._id}/lessons/${idStr}`)}
+                            className={`group flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                              isCurrent
+                                ? 'bg-indigo-600/20 ring-1 ring-indigo-500/30'
+                                : 'hover:bg-slate-800/70'
+                            }`}
+                          >
+                            <span
+                              className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-semibold ${
+                                isCurrent
+                                  ? 'bg-indigo-600 text-white'
+                                  : status === 'completed'
+                                    ? 'bg-emerald-600/20 text-emerald-400'
+                                    : 'bg-slate-800 text-slate-400'
+                              }`}
+                            >
+                              {status === 'completed' && !isCurrent ? '✓' : globalIndex + 1}
+                            </span>
+                            <span
+                              className={`flex-1 line-clamp-2 text-xs leading-snug ${
+                                isCurrent ? 'text-indigo-200 font-medium' : 'text-slate-300 group-hover:text-slate-100'
+                              }`}
+                            >
+                              {l.title}
+                            </span>
+                            <span className="mt-0.5 shrink-0">
+                              {status === 'completed' ? (
+                                <CheckCircle2 size={13} className="text-emerald-400" />
+                              ) : status === 'in_progress' ? (
+                                <CircleDot size={13} className="text-sky-400" />
+                              ) : (
+                                <Circle size={13} className="text-slate-700" />
+                              )}
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ol>
+                  )}
+                </div>
               )
             })}
-          </ol>
+          </div>
         </div>
       </aside>
     </div>

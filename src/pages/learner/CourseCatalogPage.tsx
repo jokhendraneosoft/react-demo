@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { courseService } from '@/services/api/course.service'
 import { Link } from 'react-router-dom'
 import type { Course, CourseWithRating } from '@/types/api'
+import { getAllLessons } from '@/types/api'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Skeleton, TextSkeleton } from '@/components/ui/Skeleton'
 
@@ -20,7 +21,7 @@ function CourseCard({ course }: { course: CourseWithRating }) {
   const totalMinutes =
     typeof course.estimatedDurationMinutes === 'number' && course.estimatedDurationMinutes > 0
       ? course.estimatedDurationMinutes
-      : (course.lessons ?? []).reduce(
+      : getAllLessons(course).reduce(
           (sum, l) => sum + (l.estimatedDurationMinutes && l.estimatedDurationMinutes > 0 ? l.estimatedDurationMinutes : 0),
           0
         )
@@ -81,7 +82,7 @@ function CourseCard({ course }: { course: CourseWithRating }) {
         </p>
         <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
           <span className="text-[11px] text-slate-500">
-            {course.lessons?.length ?? 0} lesson{(course.lessons?.length ?? 0) !== 1 ? 's' : ''}
+            {getAllLessons(course).length} lesson{getAllLessons(course).length !== 1 ? 's' : ''}
             {durationLabel ? ` · ~${durationLabel}` : ''}
           </span>
           <span className="text-xs font-medium text-sky-400 group-hover:text-sky-300">
