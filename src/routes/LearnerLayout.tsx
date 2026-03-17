@@ -66,10 +66,10 @@ export default function LearnerLayout() {
   }, [collapsed, user?.id])
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
+    <div className="flex h-screen bg-slate-950 text-slate-100">
       {/* Sidebar */}
       <aside
-        className={`relative flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out ${collapsed ? 'w-16' : 'w-64'}`}
+        className={`relative flex h-screen flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out ${collapsed ? 'w-16' : 'w-64'}`}
       >
         {/* Toggle button — sits on the right edge of the sidebar */}
         <button

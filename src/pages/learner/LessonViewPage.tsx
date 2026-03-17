@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
@@ -87,39 +87,176 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
-function ReplyItem({ reply }: { reply: LessonCommentReply }) {
+const MAX_REPLY_DEPTH = 3
+
+function addReplyToTree(
+  comments: LessonComment[],
+  parentId: string,
+  newReply: LessonCommentReply,
+): LessonComment[] {
+  return comments.map((c) => {
+    if (c.id === parentId) {
+      return { ...c, replies: [...(c.replies ?? []), newReply] }
+    }
+    if (c.replies?.length) {
+      return {
+        ...c,
+        replies: addReplyToReplies(c.replies, parentId, newReply),
+      }
+    }
+    return c
+  })
+}
+
+function addReplyToReplies(
+  replies: LessonCommentReply[],
+  parentId: string,
+  newReply: LessonCommentReply,
+): LessonCommentReply[] {
+  return replies.map((r) => {
+    if (r.id === parentId) {
+      return { ...r, replies: [...(r.replies ?? []), newReply] }
+    }
+    if (r.replies?.length) {
+      return {
+        ...r,
+        replies: addReplyToReplies(r.replies, parentId, newReply),
+      }
+    }
+    return r
+  })
+}
+
+interface ReplyItemProps {
+  reply: LessonCommentReply
+  depth?: number
+  replyOpen: Record<string, boolean>
+  replyInputs: Record<string, string>
+  submittingReply: Record<string, boolean>
+  setReplyOpen: Dispatch<SetStateAction<Record<string, boolean>>>
+  setReplyInputs: Dispatch<SetStateAction<Record<string, string>>>
+  handleSubmitReply: (parentId: string) => void
+}
+
+function ReplyItem({
+  reply,
+  depth = 0,
+  replyOpen,
+  replyInputs,
+  submittingReply,
+  setReplyOpen,
+  setReplyInputs,
+  handleSubmitReply,
+}: ReplyItemProps) {
   const isAdmin = reply.user?.role === 'admin'
+  const isReplyOpen = replyOpen[reply.id] ?? false
+  const replyText = replyInputs[reply.id] ?? ''
+  const isSubmitting = submittingReply[reply.id] ?? false
+  const nestedReplies = reply.replies ?? []
+  const hasNested = nestedReplies.length > 0
+  const underMaxDepth = depth < MAX_REPLY_DEPTH
+
   return (
-    <div className="flex gap-2">
-      <div
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
-          isAdmin
-            ? 'bg-indigo-700/50 text-indigo-200 ring-1 ring-indigo-500/40'
-            : 'bg-slate-700 text-slate-300'
-        }`}
-      >
-        {getInitials(reply.user?.name ?? 'User')}
-      </div>
-      <div className="flex-1 rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-2.5">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-200">
-            {reply.user?.name ?? 'User'}
-          </span>
-          {isAdmin && (
-            <span className="rounded-full bg-indigo-600/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-indigo-300">
-              Admin
-            </span>
-          )}
-          <span className="ml-auto text-[10px] text-slate-500">
-            {new Date(reply.createdAt).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </span>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <div
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+            isAdmin
+              ? 'bg-indigo-700/50 text-indigo-200 ring-1 ring-indigo-500/40'
+              : 'bg-slate-700 text-slate-300'
+          }`}
+        >
+          {getInitials(reply.user?.name ?? 'User')}
         </div>
-        <p className="text-sm leading-relaxed text-slate-300">{reply.body}</p>
+        <div className="flex-1 rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-2.5">
+          <div className="mb-1 flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-200">
+              {reply.user?.name ?? 'User'}
+            </span>
+            {isAdmin && (
+              <span className="rounded-full bg-indigo-600/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-indigo-300">
+                Admin
+              </span>
+            )}
+            <span className="ml-auto text-[10px] text-slate-500">
+              {new Date(reply.createdAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </span>
+          </div>
+          <p className="text-sm leading-relaxed text-slate-300">{reply.body}</p>
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() =>
+                setReplyOpen((prev) => ({ ...prev, [reply.id]: !prev[reply.id] }))
+              }
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 transition-colors hover:text-indigo-400"
+            >
+              <CornerDownRight size={11} />
+              {isReplyOpen ? 'Cancel' : `Reply${hasNested ? ` · ${nestedReplies.length}` : ''}`}
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Nested replies (recursive) */}
+      {hasNested && underMaxDepth && (
+        <div className="ml-9 space-y-2">
+          {nestedReplies.map((r) => (
+            <ReplyItem
+              key={r.id}
+              reply={r}
+              depth={depth + 1}
+              replyOpen={replyOpen}
+              replyInputs={replyInputs}
+              submittingReply={submittingReply}
+              setReplyOpen={setReplyOpen}
+              setReplyInputs={setReplyInputs}
+              handleSubmitReply={handleSubmitReply}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Inline reply form for this reply */}
+      {isReplyOpen && (
+        <div className="ml-9 flex gap-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600/20 text-[10px] font-semibold text-indigo-300 ring-1 ring-indigo-500/30">
+            You
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <textarea
+              rows={2}
+              autoFocus
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors resize-none"
+              placeholder="Write a reply…"
+              value={replyText}
+              onChange={(e) =>
+                setReplyInputs((prev) => ({ ...prev, [reply.id]: e.target.value }))
+              }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
+                  handleSubmitReply(reply.id)
+              }}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <p className="text-[10px] text-slate-600">Ctrl+Enter to post</p>
+              <button
+                type="button"
+                onClick={() => handleSubmitReply(reply.id)}
+                disabled={isSubmitting || !replyText.trim()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Send size={11} />
+                {isSubmitting ? 'Posting…' : 'Post reply'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -440,11 +577,7 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
       )
       setReplyInputs((prev) => ({ ...prev, [commentId]: '' }))
       setReplyOpen((prev) => ({ ...prev, [commentId]: false }))
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId ? { ...c, replies: [...(c.replies ?? []), reply] } : c,
-        ),
-      )
+      setComments((prev) => addReplyToTree(prev, commentId, reply))
       addToast('Reply posted', 'success')
     } catch (err) {
       console.error(err)
@@ -1149,11 +1282,20 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
                           </div>
                         </div>
 
-                        {/* Existing replies */}
+                        {/* Existing replies (recursive; includes nested and reply form per node) */}
                         {(c.replies?.length ?? 0) > 0 && !isReplyBoxOpen && (
                           <div className="ml-11 space-y-2">
                             {c.replies.map((r) => (
-                              <ReplyItem key={r.id} reply={r} />
+                              <ReplyItem
+                                key={r.id}
+                                reply={r}
+                                replyOpen={replyOpen}
+                                replyInputs={replyInputs}
+                                submittingReply={submittingReply}
+                                setReplyOpen={setReplyOpen}
+                                setReplyInputs={setReplyInputs}
+                                handleSubmitReply={handleSubmitReply}
+                              />
                             ))}
                           </div>
                         )}
@@ -1163,7 +1305,16 @@ function LessonViewPageInner({ courseId, lessonId }: { courseId: string; lessonI
                           <div className="ml-11 space-y-2">
                             {/* existing replies above the input */}
                             {c.replies?.map((r) => (
-                              <ReplyItem key={r.id} reply={r} />
+                              <ReplyItem
+                                key={r.id}
+                                reply={r}
+                                replyOpen={replyOpen}
+                                replyInputs={replyInputs}
+                                submittingReply={submittingReply}
+                                setReplyOpen={setReplyOpen}
+                                setReplyInputs={setReplyInputs}
+                                handleSubmitReply={handleSubmitReply}
+                              />
                             ))}
                             <div className="flex gap-2">
                               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600/20 text-[10px] font-semibold text-indigo-300 ring-1 ring-indigo-500/30">

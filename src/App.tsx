@@ -15,6 +15,7 @@ import MyLearningPage from '@/pages/learner/MyLearningPage'
 import ProfilePage from '@/pages/learner/ProfilePage'
 import AdminCourseListPage from '@/pages/admin/CourseListPage'
 import AdminCourseEditorPage from '@/pages/admin/CourseEditorPage'
+import AdminCourseDiscussionPage from '@/pages/admin/CourseDiscussionPage'
 import AdminStatsDashboardPage from '@/pages/admin/StatsDashboardPage'
 import { ROUTES } from '@/routes/paths'
 
@@ -109,6 +110,7 @@ function App() {
           <Route path="courses" element={<AdminCourseListPage />} />
           <Route path="courses/new" element={<AdminCourseEditorPage />} />
           <Route path="courses/:id/edit" element={<AdminCourseEditorPage />} />
+          <Route path="courses/:id/discussion" element={<AdminCourseDiscussionPage />} />
           <Route path="stats" element={<AdminStatsDashboardPage />} />
         </Route>
 

@@ -159,6 +159,8 @@ export interface LessonCommentReply {
   createdAt: string
   parentId: string
   user: LessonCommentUser | null
+  /** Nested replies (reply-to-reply); present when list API returns tree */
+  replies?: LessonCommentReply[]
 }
 
 export interface LessonComment {

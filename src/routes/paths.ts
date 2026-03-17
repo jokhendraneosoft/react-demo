@@ -19,6 +19,7 @@ export const ROUTES = {
     COURSES: '/admin/courses',
     COURSE_NEW: '/admin/courses/new',
     COURSE_EDIT: (id: string | ':id' = ':id') => `/admin/courses/${id}/edit`,
+    COURSE_DISCUSSION: (id: string | ':id' = ':id') => `/admin/courses/${id}/discussion`,
     STATS: '/admin/stats',
   },
 } as const;

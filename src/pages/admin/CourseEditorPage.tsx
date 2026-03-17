@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { apiClient } from '@/services/api/client'
+import { ROUTES } from '@/routes/paths'
 import { useToast } from '@/context/ToastContext'
 
 interface LessonInput {
@@ -199,6 +200,16 @@ export default function CourseEditorPage() {
         <p className="mt-2 text-sm text-slate-400">
           Set the title, description, cover image, and lessons. Published courses appear in the learner catalog.
         </p>
+        {isEdit && id && (
+          <div className="mt-3">
+            <Link
+              to={ROUTES.ADMIN.COURSE_DISCUSSION(id)}
+              className="text-sm text-sky-400 hover:text-sky-300"
+            >
+              Discussion
+            </Link>
+          </div>
+        )}
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
