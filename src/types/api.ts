@@ -68,12 +68,41 @@ export interface CourseProgress {
   lastAccessedAt?: string
 }
 
+export interface AdminCourseStatBase {
+  courseId: string
+  courseTitle: string
+  category: string
+}
+
+export interface AdminEnrollmentsPerCourse extends AdminCourseStatBase {
+  enrollments: number
+}
+
+export interface AdminRatingsPerCourse extends AdminCourseStatBase {
+  averageRating: number
+  count: number
+}
+
+export interface AdminCompletionPerCourse extends AdminCourseStatBase {
+  completed: number
+  total: number
+}
+
+export interface AdminEnrollmentPoint {
+  date: string
+  count: number
+}
+
+export type AdminStatsRange = '7d' | '30d' | 'all'
+
 export interface AdminOverviewStats {
   courseCount: number
-  enrollmentsPerCourse: { _id: string; enrollments: number }[]
-  ratingsPerCourse: { _id: string; averageRating: number; count: number }[]
+  enrollmentsPerCourse: AdminEnrollmentsPerCourse[]
+  ratingsPerCourse: AdminRatingsPerCourse[]
   activeLearners: number
-  completionPerCourse: { _id: string; completed: number; total: number }[]
+  completionPerCourse: AdminCompletionPerCourse[]
+  enrollmentsTimeSeries: AdminEnrollmentPoint[]
+  range: AdminStatsRange
 }
 
 export interface CourseFilters {
@@ -95,5 +124,75 @@ export interface SavedCourseSummary {
 
 export interface RecentCourseSummary extends SavedCourseSummary {
   lastViewedAt: string
+}
+
+export interface CourseRatingSummary {
+  average: number
+  count: number
+}
+
+export interface CourseWithRating extends Course {
+  rating?: CourseRatingSummary
+}
+
+export interface CourseFeedback {
+  id: string
+  rating: number
+  comment: string
+  user: {
+    id: string
+    name: string
+  } | null
+  createdAt: string
+}
+
+export interface LessonCommentUser {
+  id: string
+  name: string
+  /** 'admin' | 'learner' — used to badge admin/instructor replies */
+  role: string
+}
+
+export interface LessonCommentReply {
+  id: string
+  body: string
+  createdAt: string
+  parentId: string
+  user: LessonCommentUser | null
+}
+
+export interface LessonComment {
+  id: string
+  body: string
+  createdAt: string
+  parentId: string | null
+  user: LessonCommentUser | null
+  replies: LessonCommentReply[]
+}
+
+export interface QuizAnswer {
+  questionId: string
+  selectedOptionIds: string[]
+  isCorrect: boolean
+  isSkipped: boolean
+}
+
+export interface QuizAttemptResult {
+  id: string
+  attemptNumber: number
+  correct: number
+  wrong: number
+  skipped: number
+  total: number
+  percentage: number
+  answers: QuizAnswer[]
+  submittedAt: string
+}
+
+export interface QuizSummary {
+  attempted: boolean
+  totalAttempts: number
+  best: QuizAttemptResult | null
+  latest: QuizAttemptResult | null
 }
 

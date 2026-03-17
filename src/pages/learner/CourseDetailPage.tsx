@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, memo, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { courseService, progressService } from '@/services/api/course.service'
+import { feedbackService } from '@/services/api/feedback.service'
 import { useToast } from '@/context/ToastContext'
-import type { Course, CourseProgress } from '@/types/api'
+import type { Course, CourseProgress, CourseFeedback, CourseRatingSummary } from '@/types/api'
+import { Skeleton, TextSkeleton } from '@/components/ui/Skeleton'
+import { ErrorPanel } from '@/components/ui/ErrorPanel'
 
 const difficultyGradients: Record<string, string> = {
   beginner: 'from-emerald-600/90 to-teal-700/90',
@@ -151,6 +154,11 @@ export default function CourseDetailPage() {
       estimatedDurationMinutes?: number
     }[]
   >([])
+  const [feedback, setFeedback] = useState<CourseFeedback[]>([])
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const [submittingFeedback, setSubmittingFeedback] = useState(false)
+  const [ratingInput, setRatingInput] = useState(0)
+  const [commentInput, setCommentInput] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -182,6 +190,17 @@ export default function CourseDetailPage() {
           .catch((err) => {
             console.error(err)
           })
+
+        setFeedbackLoading(true)
+        feedbackService
+          .fetchCourseFeedback(courseId)
+          .then((items) => {
+            setFeedback(items)
+          })
+          .catch((err) => {
+            console.error(err)
+          })
+          .finally(() => setFeedbackLoading(false))
       } catch (err: any) {
         if (err.name !== 'CanceledError') {
           setLoadError(err instanceof Error ? err.message : 'Failed to load course')
@@ -235,6 +254,36 @@ export default function CourseDetailPage() {
     }
   }
 
+  const handleSubmitFeedback = async () => {
+    if (!id || ratingInput <= 0 || submittingFeedback) return
+    setSubmittingFeedback(true)
+    try {
+      const created = await feedbackService.upsertCourseFeedback(id, {
+        rating: ratingInput,
+        comment: commentInput.trim() || undefined,
+      })
+      addToast('Feedback saved', 'success')
+      setRatingInput(created.rating)
+      setCommentInput(created.comment || '')
+      setFeedback((prev) => {
+        const existingIndex = created.user
+          ? prev.findIndex((f) => f.user && f.user.id === created.user!.id)
+          : -1
+        if (existingIndex >= 0) {
+          const copy = [...prev]
+          copy[existingIndex] = created
+          return copy
+        }
+        return [created, ...prev]
+      })
+    } catch (err) {
+      console.error(err)
+      addToast('Failed to submit feedback', 'error')
+    } finally {
+      setSubmittingFeedback(false)
+    }
+  }
+
   const lessonStatus = useMemo(() => {
     if (!progress) return new Map<string, 'not_started' | 'in_progress' | 'completed'>()
     const map = new Map<string, 'not_started' | 'in_progress' | 'completed'>()
@@ -271,18 +320,37 @@ export default function CourseDetailPage() {
 
   if (loading && !course) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <span className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
-        <p className="text-sm text-slate-400">Loading course...</p>
+      <div className="space-y-6 pb-8">
+        <div className="overflow-hidden rounded-xl border border-slate-800 shadow-xl">
+          <Skeleton className="aspect-[21/9] w-full rounded-none" />
+        </div>
+        <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm space-y-3">
+          <TextSkeleton className="h-4 w-1/3" />
+          <TextSkeleton className="h-3 w-2/3" />
+          <TextSkeleton className="h-3 w-1/2" />
+        </section>
+        <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm space-y-3">
+          <TextSkeleton className="h-4 w-32" />
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="flex items-center gap-3">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <div className="flex-1 space-y-1">
+                <TextSkeleton className="h-3 w-2/3" />
+                <TextSkeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </section>
       </div>
     )
   }
 
   if (loadError || !course) {
     return (
-      <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-8 text-center">
-        <p className="text-slate-100">{loadError ?? 'Course not found.'}</p>
-      </div>
+      <ErrorPanel
+        title="Unable to load course"
+        message={loadError ?? 'Course not found.'}
+      />
     )
   }
 
@@ -290,6 +358,7 @@ export default function CourseDetailPage() {
   const gradient = difficultyGradients[course.difficulty] ?? 'from-slate-600/90 to-slate-700/90'
   const imageUrl = course.imageUrl?.trim()
   const showImage = imageUrl && !coverImgFailed
+  const ratingSummary: CourseRatingSummary | undefined = (course as any).rating
 
   const totalMinutes =
     typeof course.estimatedDurationMinutes === 'number' && course.estimatedDurationMinutes > 0
@@ -349,6 +418,12 @@ export default function CourseDetailPage() {
                 <h1 className="text-2xl font-bold text-slate-100 drop-shadow-sm sm:text-3xl">
                   {course.title}
                 </h1>
+                {ratingSummary && ratingSummary.count > 0 && (
+                  <p className="mt-1 flex items-center gap-1 text-xs text-amber-300">
+                    <span>★ {ratingSummary.average.toFixed(1)}</span>
+                    <span className="text-[11px] text-slate-400">({ratingSummary.count} rating{ratingSummary.count !== 1 ? 's' : ''})</span>
+                  </p>
+                )}
                 <p className="mt-1 line-clamp-2 text-sm text-slate-300">
                   {course.description}
                 </p>
@@ -456,6 +531,86 @@ export default function CourseDetailPage() {
           />
         </>
       )}
+      <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100">Reviews</h3>
+            <p className="text-xs text-slate-400">
+              Share your experience with this course.
+            </p>
+          </div>
+          {ratingSummary && ratingSummary.count > 0 && (
+            <p className="text-xs text-amber-300">
+              ★ {ratingSummary.average.toFixed(1)} · {ratingSummary.count} rating{ratingSummary.count !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+        {isEnrolled ? (
+          <div className="mb-4 space-y-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-200">Your rating:</span>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRatingInput(star)}
+                    className={`text-lg leading-none ${
+                      ratingInput >= star ? 'text-amber-300' : 'text-slate-600'
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              rows={3}
+              placeholder="What did you like or find challenging?"
+              className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={handleSubmitFeedback}
+              disabled={submittingFeedback || ratingInput <= 0}
+              className="rounded bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submittingFeedback ? 'Saving...' : 'Submit review'}
+            </button>
+          </div>
+        ) : (
+          <p className="mb-4 text-xs text-slate-500">
+            Enroll in this course to leave a rating and review.
+          </p>
+        )}
+        <div className="space-y-2">
+          {feedbackLoading && <p className="text-xs text-slate-400">Loading reviews...</p>}
+          {!feedbackLoading && feedback.length === 0 && (
+            <p className="text-xs text-slate-500">No reviews yet. Be the first to review this course.</p>
+          )}
+          {!feedbackLoading &&
+            feedback.slice(0, 5).map((item) => (
+              <div
+                key={item.id}
+                className="rounded-md border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-200"
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="font-medium">
+                    {item.user?.name ?? 'Learner'}
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    ★ {item.rating}
+                  </span>
+                </div>
+                {item.comment && (
+                  <p className="text-[11px] text-slate-300">{item.comment}</p>
+                )}
+              </div>
+            ))}
+        </div>
+      </section>
       {recommendations.length > 0 && (
         <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">

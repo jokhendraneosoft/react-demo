@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignupPage from '@/pages/auth/SignupPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import LearnerLayout from '@/routes/LearnerLayout'
 import AdminLayout from '@/routes/AdminLayout'
@@ -59,6 +61,22 @@ function App() {
           element={
             <RequireGuest>
               <SignupPage />
+            </RequireGuest>
+          }
+        />
+        <Route
+          path={ROUTES.AUTH.FORGOT_PASSWORD}
+          element={
+            <RequireGuest>
+              <ForgotPasswordPage />
+            </RequireGuest>
+          }
+        />
+        <Route
+          path={ROUTES.AUTH.RESET_PASSWORD}
+          element={
+            <RequireGuest>
+              <ResetPasswordPage />
             </RequireGuest>
           }
         />

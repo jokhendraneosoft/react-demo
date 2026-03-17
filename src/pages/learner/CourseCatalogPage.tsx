@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { courseService } from '@/services/api/course.service'
 import { Link } from 'react-router-dom'
-import type { Course } from '@/types/api'
+import type { Course, CourseWithRating } from '@/types/api'
 import { useDebounce } from '@/hooks/useDebounce'
+import { Skeleton, TextSkeleton } from '@/components/ui/Skeleton'
 
 const difficultyGradients: Record<string, string> = {
   beginner: 'from-emerald-600/90 to-teal-700/90',
@@ -10,7 +11,7 @@ const difficultyGradients: Record<string, string> = {
   advanced: 'from-violet-600/90 to-fuchsia-700/90',
 }
 
-function CourseCard({ course }: { course: Course }) {
+function CourseCard({ course }: { course: CourseWithRating }) {
   const gradient = difficultyGradients[course.difficulty] ?? 'from-slate-600/90 to-slate-700/90'
   const imageUrl = course.imageUrl?.trim()
   const [imgFailed, setImgFailed] = useState(false)
@@ -69,6 +70,12 @@ function CourseCard({ course }: { course: Course }) {
         <h3 className="mb-2 line-clamp-2 text-base font-semibold text-slate-100 transition-colors group-hover:text-sky-200">
           {course.title}
         </h3>
+        {course.rating && course.rating.count > 0 && (
+          <p className="mb-1 flex items-center gap-1 text-xs text-amber-300">
+            <span>★ {course.rating.average.toFixed(1)}</span>
+            <span className="text-[10px] text-slate-500">({course.rating.count})</span>
+          </p>
+        )}
         <p className="mb-3 line-clamp-3 flex-1 text-sm text-slate-400">
           {course.description}
         </p>
@@ -87,29 +94,40 @@ function CourseCard({ course }: { course: Course }) {
 }
 
 export default function CourseCatalogPage() {
-  const [courses, setCourses] = useState<Course[]>([])
+  const [courses, setCourses] = useState<CourseWithRating[]>([])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [difficulty, setDifficulty] = useState('')
   const [status, setStatus] = useState<'all' | 'published' | 'draft'>('published')
+  const [loading, setLoading] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
 
   useEffect(() => {
     const controller = new AbortController()
+    setLoading(true)
 
-    courseService.fetchCourses({
-      q: debouncedSearch || undefined,
-      category: category || undefined,
-      difficulty: (difficulty || undefined) as Course['difficulty'] | undefined,
-      status,
-    }, { signal: controller.signal })
+    courseService
+      .fetchCourses(
+        {
+          q: debouncedSearch || undefined,
+          category: category || undefined,
+          difficulty: (difficulty || undefined) as Course['difficulty'] | undefined,
+          status,
+        },
+        { signal: controller.signal }
+      )
       .then((data) => {
         setCourses(data)
       })
       .catch((err) => {
         if (err.name !== 'CanceledError') {
           console.error(err)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false)
         }
       })
 
@@ -175,10 +193,30 @@ export default function CourseCatalogPage() {
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-        {courses.map((course) => (
-          <CourseCard key={course._id} course={course} />
-        ))}
-        {courses.length === 0 && (
+        {loading &&
+          Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="flex flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg"
+            >
+              <Skeleton className="aspect-[16/10] w-full rounded-none" />
+              <div className="flex flex-1 flex-col gap-2 p-4">
+                <TextSkeleton className="h-4 w-3/4" />
+                <TextSkeleton className="h-3 w-full" />
+                <TextSkeleton className="h-3 w-5/6" />
+                <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                  <TextSkeleton className="h-3 w-2/3" />
+                  <TextSkeleton className="h-3 w-16" />
+                </div>
+              </div>
+            </div>
+          ))}
+
+        {!loading &&
+          courses.map((course) => (
+            <CourseCard key={course._id} course={course} />
+          ))}
+        {!loading && courses.length === 0 && (
           <p className="col-span-full text-sm text-slate-400">No courses match your filters.</p>
         )}
       </div>

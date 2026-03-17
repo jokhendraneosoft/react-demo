@@ -7,6 +7,9 @@ import type {
   EnrollmentSummary,
   RecentCourseSummary,
   SavedCourseSummary,
+  QuizAttemptResult,
+  QuizAnswer,
+  QuizSummary,
 } from '@/types/api';
 import type { AxiosRequestConfig } from 'axios';
 
@@ -94,6 +97,37 @@ export const progressService = {
     const res = await apiClient.post<CourseProgress>(
       API_ENDPOINTS.PROGRESS.LESSON_PROGRESS(courseId, lessonId),
       { status }
+    );
+    return res.data;
+  },
+};
+
+export interface QuizSubmitPayload {
+  correct: number;
+  wrong: number;
+  skipped: number;
+  total: number;
+  answers: QuizAnswer[];
+}
+
+export const quizService = {
+  /** Save a completed quiz attempt to the database (user-scoped). */
+  submitAttempt: async (
+    courseId: string,
+    lessonId: string,
+    payload: QuizSubmitPayload
+  ): Promise<QuizAttemptResult> => {
+    const res = await apiClient.post<QuizAttemptResult>(
+      API_ENDPOINTS.PROGRESS.QUIZ_SUBMIT(courseId, lessonId),
+      payload
+    );
+    return res.data;
+  },
+
+  /** Fetch the learner's quiz summary (best + latest attempt) from the database. */
+  getSummary: async (courseId: string, lessonId: string): Promise<QuizSummary> => {
+    const res = await apiClient.get<QuizSummary>(
+      API_ENDPOINTS.PROGRESS.QUIZ_SUMMARY(courseId, lessonId)
     );
     return res.data;
   },

@@ -140,10 +140,21 @@ export default function CourseEditorPage() {
     }
   }
 
-  const updateLesson = (index: number, field: keyof LessonInput, value: string) => {
+  const updateLesson = (
+    index: number,
+    field: keyof LessonInput,
+    value: string | number | LessonInput['quizQuestions'],
+  ) => {
     setFormData((prev) => ({
       ...prev,
-      lessons: prev.lessons.map((lesson, i) => (i === index ? { ...lesson, [field]: value } : lesson))
+      lessons: prev.lessons.map((lesson, i) =>
+        i === index
+          ? {
+              ...lesson,
+              [field]: value as never,
+            }
+          : lesson,
+      ),
     }))
   }
 
@@ -158,6 +169,7 @@ export default function CourseEditorPage() {
           content: '',
           videoUrl: '',
           estimatedDurationMinutes: 0,
+          quizQuestions: [],
         },
       ],
     }))

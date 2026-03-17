@@ -19,6 +19,16 @@ interface AuthResponse {
   refreshToken: string;
 }
 
+interface ForgotPasswordPayload {
+  email: string;
+}
+
+interface ResetPasswordPayload {
+  email: string;
+  token?: string;
+  password: string;
+}
+
 export const authService = {
   login: async (credentials: LoginCredentials) => {
     const res = await apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH.LOGIN, credentials);
@@ -32,6 +42,16 @@ export const authService = {
 
   refresh: async (refreshToken: string) => {
     const res = await apiClient.post<AuthResponse>(API_ENDPOINTS.AUTH.REFRESH, { refreshToken });
+    return res.data;
+  },
+
+  forgotPassword: async (payload: ForgotPasswordPayload) => {
+    const res = await apiClient.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, payload);
+    return res.data;
+  },
+
+  resetPassword: async (payload: ResetPasswordPayload) => {
+    const res = await apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, payload);
     return res.data;
   },
 
