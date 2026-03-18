@@ -91,11 +91,11 @@ function App() {
           }
         >
           <Route index element={<Navigate to={ROUTES.LEARNER.CATALOG} replace />} />
-          <Route path="catalog" element={<CourseCatalogPage />} />
-          <Route path="courses/:id" element={<CourseDetailPage />} />
-          <Route path="courses/:courseId/lessons/:lessonId" element={<LessonViewPage />} />
-          <Route path="my-learning" element={<MyLearningPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route path={ROUTES.LEARNER.CATALOG} element={<CourseCatalogPage />} />
+          <Route path={ROUTES.LEARNER.COURSE_DETAIL(':id')} element={<CourseDetailPage />} />
+          <Route path={ROUTES.LEARNER.LESSON(':courseId', ':lessonId')} element={<LessonViewPage />} />
+          <Route path={ROUTES.LEARNER.MY_LEARNING} element={<MyLearningPage />} />
+          <Route path={ROUTES.LEARNER.PROFILE} element={<ProfilePage />} />
         </Route>
 
         <Route
@@ -107,11 +107,11 @@ function App() {
           }
         >
           <Route index element={<Navigate to={ROUTES.ADMIN.COURSES} replace />} />
-          <Route path="courses" element={<AdminCourseListPage />} />
-          <Route path="courses/new" element={<AdminCourseEditorPage />} />
-          <Route path="courses/:id/edit" element={<AdminCourseEditorPage />} />
-          <Route path="courses/:id/discussion" element={<AdminCourseDiscussionPage />} />
-          <Route path="stats" element={<AdminStatsDashboardPage />} />
+          <Route path={ROUTES.ADMIN.COURSES} element={<AdminCourseListPage />} />
+          <Route path={ROUTES.ADMIN.COURSE_NEW} element={<AdminCourseEditorPage />} />
+          <Route path={ROUTES.ADMIN.COURSE_EDIT(':id')} element={<AdminCourseEditorPage />} />
+          <Route path={ROUTES.ADMIN.COURSE_DISCUSSION(':id')} element={<AdminCourseDiscussionPage />} />
+          <Route path={ROUTES.ADMIN.STATS} element={<AdminStatsDashboardPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

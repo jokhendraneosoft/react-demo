@@ -9,6 +9,7 @@ export default function ProfilePage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [saving, setSaving] = useState(false)
 
+
   useEffect(() => {
     if (!user) return
     userService

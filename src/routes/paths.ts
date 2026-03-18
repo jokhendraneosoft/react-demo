@@ -23,4 +23,3 @@ export const ROUTES = {
     STATS: '/admin/stats',
   },
 } as const;
-

@@ -80,6 +80,8 @@ function getYouTubeEmbedUrl(url: string | undefined): string | null {
   return null
 }
 
+
+
 function getInitials(name: string) {
   return name
     .split(' ')
